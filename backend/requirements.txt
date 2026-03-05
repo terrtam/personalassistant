@@ -5,9 +5,11 @@ pydantic-settings
 langchain
 langchain-groq
 langchain-community
+langchain-chroma
 langchain-text-splitters
 langchain-huggingface
 langchain-openai
 sentence-transformers
 faiss-cpu
+chromadb
 httpx

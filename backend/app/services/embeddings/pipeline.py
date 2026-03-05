@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-from langchain_community.vectorstores import FAISS
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 from app.core.settings import get_settings
@@ -62,12 +62,15 @@ def build_index(
     if not split_docs:
         raise ValueError("No documents with text were provided for indexing.")
 
-    embeddings = get_embedding_model()
-    vector_store = FAISS.from_documents(split_docs, embeddings)
-
     index_path = Path(settings.embedding_index_path)
     index_path.mkdir(parents=True, exist_ok=True)
-    vector_store.save_local(str(index_path))
+    embeddings = get_embedding_model()
+    Chroma.from_documents(
+        documents=split_docs,
+        embedding=embeddings,
+        persist_directory=str(index_path),
+        collection_name="calendar_agent",
+    )
 
     return {
         "source_documents": source_count,
@@ -85,10 +88,10 @@ def search_index(query: str, k: int = 5) -> list[dict[str, Any]]:
         )
 
     embeddings = get_embedding_model()
-    vector_store = FAISS.load_local(
-        str(index_path),
-        embeddings,
-        allow_dangerous_deserialization=True,
+    vector_store = Chroma(
+        embedding_function=embeddings,
+        persist_directory=str(index_path),
+        collection_name="calendar_agent",
     )
     docs_with_score = vector_store.similarity_search_with_score(query, k=k)
 

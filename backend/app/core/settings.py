@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     embedding_provider: str = "huggingface"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_index_path: str = "./data/faiss_index"
+    embedding_index_path: str = "./data/chroma_db"
     embedding_chunk_size: int = 800
     embedding_chunk_overlap: int = 120
 
