@@ -13,3 +13,5 @@ sentence-transformers
 faiss-cpu
 chromadb
 httpx
+pypdf
+python-docx
