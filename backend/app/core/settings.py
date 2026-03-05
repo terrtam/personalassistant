@@ -9,6 +9,12 @@ class Settings(BaseSettings):
     groq_model: str = "llama-3.3-70b-versatile"
     groq_temperature: float = 0.2
     groq_timeout_seconds: int = 30
+    openai_api_key: str | None = None
+    embedding_provider: str = "huggingface"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_index_path: str = "./data/faiss_index"
+    embedding_chunk_size: int = 800
+    embedding_chunk_overlap: int = 120
 
     model_config = SettingsConfigDict(
         env_file=".env",

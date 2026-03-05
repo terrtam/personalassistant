@@ -4,4 +4,10 @@ python-dotenv
 pydantic-settings
 langchain
 langchain-groq
+langchain-community
+langchain-text-splitters
+langchain-huggingface
+langchain-openai
+sentence-transformers
+faiss-cpu
 httpx
