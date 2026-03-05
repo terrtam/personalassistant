@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     groq_temperature: float = 0.2
     groq_timeout_seconds: int = 30
     openai_api_key: str | None = None
-    embedding_provider: str = "huggingface"
+    embedding_provider: str = "hash"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_index_path: str = "./data/chroma_db"
     embedding_chunk_size: int = 800
