@@ -151,6 +151,9 @@ GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
 GROQ_TIMEOUT_SECONDS=30
 DATABASE_URL=
+CORS_ORIGIN_IP=127.0.0.1
+CORS_ORIGIN_SCHEME=http
+CORS_ORIGIN_PORTS=3000,5173
 
 ---
 
@@ -162,8 +165,11 @@ DATABASE_URL=
 2. Install dependencies:
    pip install -r requirements.txt
 3. Configure environment variables
-4. Run:
+4. Run locally (localhost only):
    uvicorn app.main:app --reload
+5. Run for access from your known LAN IP (same network):
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   Then open `http://<your-known-ip>:8000` (example: `http://192.168.1.50:8000`).
 
 ### Frontend
 
@@ -242,6 +248,9 @@ GROQ_API_KEY=
 GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
 GROQ_TIMEOUT_SECONDS=30
+CORS_ORIGIN_IP=127.0.0.1
+CORS_ORIGIN_SCHEME=http
+CORS_ORIGIN_PORTS=3000,5173
 
 ### Groq Smoke Test Endpoint
 
