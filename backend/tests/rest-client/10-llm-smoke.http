@@ -1,0 +1,23 @@
+@baseUrl = http://127.0.0.1:8000
+@contentType = application/json
+
+### LLM smoke test (requires GROQ_API_KEY in backend/.env)
+POST {{baseUrl}}/api/llm/smoke
+Content-Type: {{contentType}}
+
+{
+  "prompt": "Reply with exactly: Groq connected"
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Smoke endpoint returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Smoke response contains model + response", function () {
+  client.assert(!!response.body.model, "Missing model");
+  client.assert(!!response.body.response, "Missing response text");
+});
+%}

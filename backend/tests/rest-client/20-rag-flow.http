@@ -1,0 +1,86 @@
+@baseUrl = http://127.0.0.1:8000
+@contentType = application/json
+
+### Build index with deterministic test content
+POST {{baseUrl}}/api/embeddings/index
+Content-Type: {{contentType}}
+
+{
+  "documents": [
+    {
+      "id": "rag-test-doc-1",
+      "text": "Team standup is every Monday at 9 AM Eastern.",
+      "metadata": {
+        "title": "calendar policy",
+        "source": "rest-client-test"
+      }
+    }
+  ],
+  "chunk_size": 400,
+  "chunk_overlap": 40
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Index build returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Index build reports at least one chunk", function () {
+  client.assert(response.body.chunks >= 1, "Expected chunks >= 1");
+});
+%}
+
+### Ask answerable question (should include citation)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "When is team standup?",
+  "k": 3
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Ask endpoint returns 200 for answerable question", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Answer includes citation", function () {
+  const answer = response.body.answer || "";
+  client.assert(/\[Source\s+\d+\]/.test(answer), "Expected citation like [Source 1]");
+});
+
+client.test("Response includes source list", function () {
+  client.assert(Array.isArray(response.body.sources), "Expected sources array");
+  client.assert(response.body.sources.length >= 1, "Expected at least one source");
+});
+%}
+
+### Ask unanswerable question (should trigger insufficient-context fallback)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "What is our PTO carryover policy?",
+  "k": 3
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Ask endpoint returns 200 for unanswerable question", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Answer signals insufficient context", function () {
+  const answer = (response.body.answer || "").toLowerCase();
+  const strictExpected = "i don't have enough context in the retrieved sources to answer that fully.";
+  client.assert(
+    answer.includes(strictExpected) || /insufficient|not enough context|don't have enough context/.test(answer),
+    "Expected insufficient-context fallback language"
+  );
+});
+%}

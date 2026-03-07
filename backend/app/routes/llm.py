@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.services.embeddings.pipeline import search_index
 from app.services.llm.groq_client import get_groq_chat_model
+from app.services.llm.prompt_templates import build_rag_prompt
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
@@ -86,16 +87,7 @@ async def ask_question(payload: AskRequest) -> AskResponse:
             detail="No relevant context found in embedding index.",
         )
 
-    context = "\n\n".join(
-        f"[Source {idx + 1}] {item['text']}" for idx, item in enumerate(results)
-    )
-    prompt = (
-        "You are a helpful assistant. Answer the question using only the provided "
-        "context. If the context is insufficient, say that clearly.\n\n"
-        f"Question:\n{payload.question}\n\n"
-        f"Context:\n{context}\n\n"
-        "Answer:"
-    )
+    prompt = build_rag_prompt(question=payload.question, sources=results)
 
     try:
         result = await llm.ainvoke(prompt)

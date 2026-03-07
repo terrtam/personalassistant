@@ -1,0 +1,16 @@
+@baseUrl = http://127.0.0.1:8000
+
+### Health check
+GET {{baseUrl}}/api/health
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Health endpoint returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Health payload contains status=ok", function () {
+  client.assert(response.body.status === "ok", "Expected status=ok");
+});
+%}

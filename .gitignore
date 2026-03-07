@@ -83,3 +83,5 @@ pnpm-debug.log*
 *.faiss
 *.index
 uploads/
+backend/data/faiss_index/
+backend/data/chroma_db/
