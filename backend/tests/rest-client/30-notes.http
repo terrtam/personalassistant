@@ -1,0 +1,42 @@
+@baseUrl = http://127.0.0.1:8000
+@contentType = application/json
+
+### Create note
+POST {{baseUrl}}/api/notes
+Content-Type: {{contentType}}
+
+{
+  "title": "Sprint retro",
+  "content": "Capture wins, blockers, and next steps."
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Create note returns 201", function () {
+  client.assert(response.status === 201, "Expected HTTP 201");
+});
+
+client.test("Create note response contains id", function () {
+  client.assert(!!response.body.id, "Expected note id");
+});
+%}
+
+### List notes
+GET {{baseUrl}}/api/notes
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("List notes returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("List notes returns array", function () {
+  client.assert(Array.isArray(response.body), "Expected array response");
+});
+
+client.test("List contains at least one note", function () {
+  client.assert(response.body.length >= 1, "Expected at least one note");
+});
+%}

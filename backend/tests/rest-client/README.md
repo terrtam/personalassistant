@@ -7,6 +7,7 @@ This folder contains API tests for the VS Code REST Client extension.
 - `00-health.http`: verifies API health endpoint
 - `10-llm-smoke.http`: verifies Groq connectivity
 - `20-rag-flow.http`: builds embeddings index, asks answerable and unanswerable RAG questions
+- `30-notes.http`: verifies creating and listing notes
 
 ## Prerequisites
 
@@ -28,6 +29,7 @@ Set-Location "c:\Users\Terrence\Desktop\Projects\Calendar Agent\backend"
    1. `00-health.http`
    2. `10-llm-smoke.http`
    3. `20-rag-flow.http`
+   4. `30-notes.http`
 4. Check the response panel test output (`PASS` / `FAIL`) for each request.
 
 ## Notes
