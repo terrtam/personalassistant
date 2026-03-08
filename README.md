@@ -1,17 +1,17 @@
-﻿# AI Personal Assistant (Calendar + Notes + RAG)
+# AI Personal Assistant (Calendar + Notes + RAG)
 
 ## Overview
 
 AI Personal Assistant is a single-user full-stack web application that integrates:
 
-- Google Calendar (OAuth + event management)
-- Personal notes storage
-- PDF document ingestion
+- Google Calendar (single configured user; no end-user OAuth flow)
+- Personal notes storage (SQLite / simple local storage)
+- Document ingestion for retrieval
 - Retrieval-Augmented Generation (RAG)
 - Voice input (browser-based)
 - Context-aware AI chat
 
-The system demonstrates end-to-end LLM integration with real-world APIs and vector-based semantic retrieval.
+The system demonstrates end-to-end LLM integration with practical retrieval over local knowledge sources.
 
 ---
 
@@ -20,20 +20,20 @@ The system demonstrates end-to-end LLM integration with real-world APIs and vect
 High-level flow:
 
 Client (React)
-    ↓
+    ?
 FastAPI Backend
-    ↓
------------------------------------------
-| Google Calendar API                  |
-| Vector Database (FAISS)              |
-| LLM Provider (Groq via LangChain)    |
------------------------------------------
+    ?
+------------------------------------------
+| Google Calendar API (configured user)  |
+| Vector Database (Chroma)               |
+| LLM Provider (Groq)                    |
+------------------------------------------
 
 ### RAG Pipeline
 
 1. User submits query
 2. Query embedding generated
-3. Top-k relevant chunks retrieved from vector DB
+3. Top-k relevant chunks retrieved from Chroma
 4. Retrieved context injected into LLM prompt
 5. LLM generates grounded response
 6. Response returned to client
@@ -44,23 +44,22 @@ FastAPI Backend
 
 ### Frontend
 - React
-- Axios
+- Vite
 - Tailwind CSS
 
 ### Backend
 - Python 3.10+
 - FastAPI
-- SQLAlchemy (optional)
 - Pydantic
 
 ### AI / Retrieval
-- LangChain
+- LangChain ecosystem
 - Groq LLM API
-- FAISS (local vector database)
-- Embedding model (OpenAI-compatible or local)
+- Chroma (local persistent vector database)
+- Embedding model (hash, HuggingFace, or OpenAI)
 
 ### External APIs
-- Google Calendar API (OAuth 2.0)
+- Google Calendar API (single configured account)
 
 ---
 
@@ -68,42 +67,36 @@ FastAPI Backend
 
 ### 1. Google Calendar Integration
 
-- OAuth 2.0 authentication
-- Fetch upcoming events
-- Create, update, delete events
-- Leverages Google-native reminders (no custom scheduler)
+- Single-user calendar integration
+- No in-app end-user OAuth authentication flow
+- Backend uses configured credentials/user context
+- Fetch and action calendar data for the configured user
 
 ### 2. Notes System
 
 - CRUD operations for notes
-- Notes stored in relational database
-- Notes embedded and stored in FAISS
-- Semantic retrieval via RAG
+- Notes stored in SQLite / simple local persistence
+- Notes can be indexed for semantic retrieval
 
-### 3. PDF Knowledge Base
+### 3. Document Knowledge Base
 
-- Upload PDFs
-- Text extraction
-- Chunking strategy
+- Upload `.pdf`, `.docx`, or `.txt`
+- Text extraction + chunking
 - Embedding generation
-- Stored in FAISS
+- Indexed in Chroma
 - Queryable via AI chat
 
 ### 4. AI Chat (RAG-Enhanced)
 
-- Context-aware answers
-- Retrieves relevant notes + document chunks
-- Injects retrieved context into prompt template
-- Uses Groq-hosted LLM
+- Context-aware answers using retrieved sources
+- Chat API is stateless
+- Main chat interface is `POST /ask`
+- Conversation history is frontend-only (UI state)
 
 ### 5. Voice Input
 
 - Browser Web Speech API
-- Speech → text
-- Used for:
-  - Note creation
-  - Event scheduling
-  - Chat queries
+- Speech ? text for prompt composition
 
 ---
 
@@ -112,10 +105,9 @@ FastAPI Backend
 - Single-user architecture
 - No registration system
 - User configured in backend environment
-- Multiple browser tabs supported
-- Stateless REST API
-- Local vector DB (FAISS) for simplicity
-- Short sprint-based development (2-week MVP scope)
+- Stateless REST chat interface
+- Chat memory kept on frontend only
+- Local Chroma vector DB for simplicity
 
 ---
 
@@ -126,16 +118,13 @@ backend/
         main.py
         routes/
         services/
-        models/
-        rag/
-        auth/
+        core/
     requirements.txt
 
 frontend/
     src/
         components/
-        pages/
-        services/
+        lib/
     package.json
 
 ---
@@ -144,13 +133,16 @@ frontend/
 
 Backend requires:
 
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
 GROQ_API_KEY=
 GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
 GROQ_TIMEOUT_SECONDS=30
-DATABASE_URL=
+EMBEDDING_PROVIDER=hash
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_INDEX_PATH=./data/chroma_db
+EMBEDDING_CHUNK_SIZE=800
+EMBEDDING_CHUNK_OVERLAP=120
+OPENAI_API_KEY=
 CORS_ORIGIN_IP=127.0.0.1
 CORS_ORIGIN_SCHEME=http
 CORS_ORIGIN_PORTS=3000,5173
@@ -163,33 +155,29 @@ CORS_ORIGIN_PORTS=3000,5173
 
 1. Create virtual environment
 2. Install dependencies:
-   pip install -r requirements.txt
-3. Configure environment variables
-4. Run locally (localhost only):
-   uvicorn app.main:app --reload
-5. Run for access from your known LAN IP (same network):
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   Then open `http://<your-known-ip>:8000` (example: `http://192.168.1.50:8000`).
+   pip install -r backend/requirements.txt
+3. Configure environment variables in `backend/.env`
+4. Run locally:
+   uvicorn app.main:app --reload --app-dir backend
 
 ### Frontend
 
 1. Install dependencies:
-   npm install
+   cd frontend && pnpm install
 2. Start dev server:
-   npm run dev
+   pnpm dev
+3. Optional API base URL:
+   VITE_API_BASE_URL=http://127.0.0.1:8000
 
 ---
 
 ## Example Use Cases
 
-Create event:
-"Schedule meeting tomorrow at 3pm"
-
-Query schedule:
+Calendar question:
 "What do I have this week?"
 
-Query document:
-"What does the uploaded PDF say about embeddings?"
+Query indexed documents:
+"What does our policy doc say about standup timing?"
 
 Create note:
 "Reminder to follow up on internship application"
@@ -198,9 +186,9 @@ Create note:
 
 ## Non-Functional Requirements
 
-- Response latency target: <3 seconds for RAG queries
-- OAuth-secured API access
-- Async endpoints for I/O operations
+- Stateless backend chat endpoint
+- Async-friendly API design
+- Retrieval-grounded responses with source citations
 - Clean separation of concerns (routes, services, retrieval logic)
 
 ---
@@ -208,21 +196,20 @@ Create note:
 ## Limitations
 
 - Single-user only
-- Local FAISS index (not distributed)
-- No production deployment included
-- Basic prompt engineering
+- Local vector index (not distributed)
+- No multi-tenant authentication model
+- Chat history is not persisted server-side
 
 ---
 
 ## Future Improvements
 
-- Multi-user authentication
+- Multi-user support
 - Hosted vector database
 - Dockerization
 - Cloud deployment
-- Advanced natural language event parsing
+- Better calendar intent parsing
 - Improved prompt optimization
-- Persistent memory beyond notes/PDFs
 
 ---
 
@@ -230,11 +217,10 @@ Create note:
 
 This project demonstrates:
 
-- Practical RAG implementation
-- LLM orchestration using LangChain
-- External API integration (Google OAuth + Calendar)
-- Vector search and embedding workflows
-- Full-stack system design
+- Practical RAG implementation with Chroma
+- LLM orchestration with Groq
+- Calendar + notes + document retrieval workflows
+- Full-stack architecture with stateless chat API
 
 ---
 
@@ -271,5 +257,3 @@ curl -X POST "http://127.0.0.1:8000/api/llm/smoke" \
   -H "Content-Type: application/json" \
   -d "{\"prompt\":\"Reply with: Groq connected\"}"
 ```
-
-
