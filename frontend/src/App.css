@@ -217,6 +217,16 @@
   opacity: 0.45;
 }
 
+.mic-feedback {
+  color: var(--subtext);
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+.mic-error {
+  color: #b42318;
+}
+
 .model-selector {
   position: relative;
 }

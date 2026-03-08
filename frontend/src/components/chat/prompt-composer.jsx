@@ -5,6 +5,8 @@ import { ModelSelector } from './model-selector'
 
 export function PromptComposer({
   attachments,
+  micError,
+  micSupported,
   model,
   models,
   onAttachmentsChange,
@@ -67,8 +69,16 @@ export function PromptComposer({
               <Paperclip size={16} />
               Attach
             </button>
-            <button className={`btn ${useMic ? 'btn-primary' : 'btn-ghost'}`} onClick={onMicToggle} type="button">
+            <button
+              aria-label={useMic ? 'Stop voice input' : 'Start voice input'}
+              className={`btn ${useMic ? 'btn-primary' : 'btn-ghost'}`}
+              disabled={!micSupported}
+              onClick={onMicToggle}
+              title={useMic ? 'Stop voice input' : 'Start voice input'}
+              type="button"
+            >
               <Mic size={16} />
+              {useMic ? 'Listening' : 'Voice'}
             </button>
             <button className={`btn ${useWeb ? 'btn-primary' : 'btn-ghost'}`} onClick={onWebToggle} type="button">
               <Globe size={16} />
@@ -87,6 +97,8 @@ export function PromptComposer({
             {status === 'streaming' ? 'Streaming' : 'Send'}
           </button>
         </div>
+        {micError ? <p className="mic-feedback mic-error">{micError}</p> : null}
+        {useMic && !micError ? <p className="mic-feedback">Listening... speak to fill the prompt.</p> : null}
     </div>
   )
 }

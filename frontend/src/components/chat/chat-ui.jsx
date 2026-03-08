@@ -19,10 +19,25 @@ export function ChatUi() {
   const [model, setModel] = useState(models[0].id)
   const [useWeb, setUseWeb] = useState(false)
   const [useMic, setUseMic] = useState(false)
+  const [micSupported, setMicSupported] = useState(true)
+  const [micError, setMicError] = useState('')
   const [attachments, setAttachments] = useState([])
   const [showScrollButton, setShowScrollButton] = useState(false)
 
   const viewportRef = useRef(null)
+  const recognitionRef = useRef(null)
+  const baseTranscriptRef = useRef('')
+  const capturedTranscriptRef = useRef('')
+
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop()
+      } catch {
+        // no-op
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -118,6 +133,97 @@ export function ChatUi() {
     setShowScrollButton(!nearBottom)
   }
 
+  const mergeTranscript = (base, spoken) => {
+    if (base && spoken) return `${base} ${spoken}`.trim()
+    return (base || spoken || '').trim()
+  }
+
+  const startMicCapture = () => {
+    if (typeof window === 'undefined') return
+
+    const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognitionApi) {
+      setMicSupported(false)
+      setMicError('Voice input is not supported in this browser.')
+      return
+    }
+
+    setMicSupported(true)
+    setMicError('')
+    baseTranscriptRef.current = text.trim()
+    capturedTranscriptRef.current = ''
+
+    if (!recognitionRef.current) {
+      const recognition = new SpeechRecognitionApi()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onstart = () => {
+        setUseMic(true)
+      }
+
+      recognition.onresult = (event) => {
+        let finalChunk = ''
+        let interimChunk = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const entry = event.results[i]
+          const spoken = entry[0]?.transcript?.trim() ?? ''
+          if (!spoken) continue
+          if (entry.isFinal) finalChunk += ` ${spoken}`
+          else interimChunk += ` ${spoken}`
+        }
+
+        if (finalChunk.trim()) {
+          capturedTranscriptRef.current = mergeTranscript(capturedTranscriptRef.current, finalChunk.trim())
+        }
+
+        const liveTranscript = mergeTranscript(capturedTranscriptRef.current, interimChunk.trim())
+        setText(mergeTranscript(baseTranscriptRef.current, liveTranscript))
+      }
+
+      recognition.onerror = (event) => {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setMicError('Microphone permission is blocked. Allow access and try again.')
+        } else {
+          setMicError(`Voice input failed: ${event.error}`)
+        }
+        setUseMic(false)
+      }
+
+      recognition.onend = () => {
+        setUseMic(false)
+      }
+
+      recognitionRef.current = recognition
+    }
+
+    try {
+      recognitionRef.current.start()
+    } catch {
+      setMicError('Voice input could not be started. Try again.')
+      setUseMic(false)
+    }
+  }
+
+  const stopMicCapture = () => {
+    try {
+      recognitionRef.current?.stop()
+    } catch {
+      // no-op
+    }
+    setUseMic(false)
+  }
+
+  const onMicToggle = () => {
+    if (useMic) {
+      stopMicCapture()
+      return
+    }
+    startMicCapture()
+  }
+
   return (
     <div className="chat-shell">
       <section className="conversation" onScroll={onConversationScroll} ref={viewportRef}>
@@ -164,10 +270,12 @@ export function ChatUi() {
         <SuggestionChips suggestions={suggestions} onSelect={(suggestion) => void sendUserMessage(suggestion)} />
         <PromptComposer
           attachments={attachments}
+          micError={micError}
+          micSupported={micSupported}
           model={model}
           models={models}
           onAttachmentsChange={setAttachments}
-          onMicToggle={() => setUseMic((prev) => !prev)}
+          onMicToggle={onMicToggle}
           onModelChange={setModel}
           onSubmit={() => void sendUserMessage(text || 'Sent with attachments')}
           onTextChange={setText}
