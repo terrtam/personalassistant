@@ -1,0 +1,14 @@
+@baseUrl = http://127.0.0.1:8000
+
+### Calendar status
+GET {{baseUrl}}/api/calendar/status
+
+###
+> {%
+client.test("Calendar status returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+%}
+
+### List upcoming events (requires Google credentials)
+GET {{baseUrl}}/api/calendar/events?max_results=5

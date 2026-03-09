@@ -8,6 +8,7 @@ This folder contains API tests for the VS Code REST Client extension.
 - `10-llm-smoke.http`: verifies Groq connectivity
 - `20-rag-flow.http`: builds embeddings index, asks answerable and unanswerable RAG questions
 - `30-notes.http`: verifies creating and listing notes
+- `40-calendar.http`: verifies calendar status and event listing endpoint wiring
 
 ## Prerequisites
 
@@ -30,6 +31,7 @@ Set-Location "c:\Users\Terrence\Desktop\Projects\Calendar Agent\backend"
    2. `10-llm-smoke.http`
    3. `20-rag-flow.http`
    4. `30-notes.http`
+   5. `40-calendar.http`
 4. Check the response panel test output (`PASS` / `FAIL`) for each request.
 
 ## Notes

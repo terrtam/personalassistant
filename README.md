@@ -4,7 +4,7 @@
 
 AI Personal Assistant is a single-user full-stack web application that integrates:
 
-- Google Calendar (single configured user; no end-user OAuth flow)
+- Google Calendar (single configured user; no end-user OAuth flow in app UI)
 - Personal notes storage (SQLite / simple local storage)
 - Document ingestion for retrieval
 - Retrieval-Augmented Generation (RAG)
@@ -19,15 +19,13 @@ The system demonstrates end-to-end LLM integration with practical retrieval over
 
 High-level flow:
 
-Client (React)
-    ?
-FastAPI Backend
-    ?
-------------------------------------------
-| Google Calendar API (configured user)  |
-| Vector Database (Chroma)               |
-| LLM Provider (Groq)                    |
-------------------------------------------
+```mermaid
+flowchart LR
+    A[Client (React)] --> B[FastAPI Backend]
+    B --> C[Google Calendar API (configured user)]
+    B --> D[Vector Database (Chroma)]
+    B --> E[LLM Provider (Groq)]
+```
 
 ### RAG Pipeline
 
@@ -43,22 +41,26 @@ FastAPI Backend
 ## Tech Stack
 
 ### Frontend
+
 - React
 - Vite
 - Tailwind CSS
 
 ### Backend
+
 - Python 3.10+
 - FastAPI
 - Pydantic
 
 ### AI / Retrieval
+
 - LangChain ecosystem
 - Groq LLM API
 - Chroma (local persistent vector database)
 - Embedding model (hash, HuggingFace, or OpenAI)
 
 ### External APIs
+
 - Google Calendar API (single configured account)
 
 ---
@@ -96,7 +98,7 @@ FastAPI Backend
 ### 5. Voice Input
 
 - Browser Web Speech API
-- Speech ? text for prompt composition
+- Speech -> text for prompt composition
 
 ---
 
@@ -113,19 +115,21 @@ FastAPI Backend
 
 ## Project Structure (Suggested)
 
+```text
 backend/
-    app/
-        main.py
-        routes/
-        services/
-        core/
-    requirements.txt
+  app/
+    main.py
+    routes/
+    services/
+    core/
+  requirements.txt
 
 frontend/
-    src/
-        components/
-        lib/
-    package.json
+  src/
+    components/
+    lib/
+  package.json
+```
 
 ---
 
@@ -133,19 +137,94 @@ frontend/
 
 Backend requires:
 
+```bash
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+GOOGLE_CALENDAR_ID=primary
+GOOGLE_TOKEN_URI=https://oauth2.googleapis.com/token
+
 GROQ_API_KEY=
 GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
 GROQ_TIMEOUT_SECONDS=30
+
 EMBEDDING_PROVIDER=hash
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 EMBEDDING_INDEX_PATH=./data/chroma_db
 EMBEDDING_CHUNK_SIZE=800
 EMBEDDING_CHUNK_OVERLAP=120
+
 OPENAI_API_KEY=
+
 CORS_ORIGIN_IP=127.0.0.1
 CORS_ORIGIN_SCHEME=http
 CORS_ORIGIN_PORTS=3000,5173
+```
+
+Google calendar endpoints:
+
+- `GET /api/calendar/status`
+- `GET /api/calendar/events`
+- `POST /api/calendar/events`
+
+---
+
+## Obtaining Google Calendar Credentials
+
+This project integrates with the Google Calendar API using a single configured Google account.
+Generate OAuth credentials and a refresh token once, then store them in `backend/.env`.
+
+### 1. Create a Google Cloud Project
+
+1. Go to `https://console.cloud.google.com`
+2. Click `Select Project -> New Project`
+3. Create a new project (for example `ai-personal-assistant`)
+
+### 2. Enable the Google Calendar API
+
+1. Open `APIs & Services -> Library`
+2. Search for `Google Calendar API`
+3. Click `Enable`
+
+### 3. Configure OAuth Consent Screen
+
+1. Open `APIs & Services -> OAuth consent screen`
+2. Create an `External` consent screen
+3. Add your Google account as a `Test User`
+
+### 4. Create OAuth Client Credentials
+
+1. Open `APIs & Services -> Credentials`
+2. Create `OAuth Client ID -> Web Application`
+3. Add redirect URI: `https://developers.google.com/oauthplayground`
+4. Copy:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+
+### 5. Generate a Refresh Token
+
+1. Open `https://developers.google.com/oauthplayground`
+2. Click the gear icon and enable `Use your own OAuth credentials`
+3. Paste your client ID and client secret
+4. Select scope: `https://www.googleapis.com/auth/calendar`
+5. Click `Authorize APIs`
+6. Click `Exchange authorization code for tokens`
+7. Copy `refresh_token` value into `GOOGLE_REFRESH_TOKEN`
+
+### 6. Calendar ID (Optional)
+
+Default:
+
+```bash
+GOOGLE_CALENDAR_ID=primary
+```
+
+To use another calendar:
+
+1. Open Google Calendar
+2. Go to calendar settings
+3. Under `Integrate calendar`, copy the `Calendar ID`
 
 ---
 
@@ -155,19 +234,19 @@ CORS_ORIGIN_PORTS=3000,5173
 
 1. Create virtual environment
 2. Install dependencies:
-   pip install -r backend/requirements.txt
+   `pip install -r backend/requirements.txt`
 3. Configure environment variables in `backend/.env`
 4. Run locally:
-   uvicorn app.main:app --reload --app-dir backend
+   `uvicorn app.main:app --reload --app-dir backend`
 
 ### Frontend
 
 1. Install dependencies:
-   cd frontend && pnpm install
+   `cd frontend && pnpm install`
 2. Start dev server:
-   pnpm dev
+   `pnpm dev`
 3. Optional API base URL:
-   VITE_API_BASE_URL=http://127.0.0.1:8000
+   `VITE_API_BASE_URL=http://127.0.0.1:8000`
 
 ---
 
@@ -226,10 +305,9 @@ This project demonstrates:
 
 ## Groq Setup (Implemented)
 
-### Additional Backend Environment Variables
+Additional backend environment variables:
 
-Add these in `backend/.env`:
-
+```bash
 GROQ_API_KEY=
 GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
@@ -237,8 +315,9 @@ GROQ_TIMEOUT_SECONDS=30
 CORS_ORIGIN_IP=127.0.0.1
 CORS_ORIGIN_SCHEME=http
 CORS_ORIGIN_PORTS=3000,5173
+```
 
-### Groq Smoke Test Endpoint
+Groq smoke test endpoint:
 
 `POST /api/llm/smoke`
 
