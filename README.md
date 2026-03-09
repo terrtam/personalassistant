@@ -21,10 +21,10 @@ High-level flow:
 
 ```mermaid
 flowchart LR
-    A[Client (React)] --> B[FastAPI Backend]
-    B --> C[Google Calendar API (configured user)]
-    B --> D[Vector Database (Chroma)]
-    B --> E[LLM Provider (Groq)]
+    A["Client (React)"] --> B["FastAPI Backend"]
+    B --> C["Google Calendar API (configured user)"]
+    B --> D["Vector Database (Chroma)"]
+    B --> E["LLM Provider (Groq)"]
 ```
 
 ### RAG Pipeline
