@@ -12,3 +12,29 @@ client.test("Calendar status returns 200", function () {
 
 ### List upcoming events (requires Google credentials)
 GET {{baseUrl}}/api/calendar/events?max_results=5
+
+### Create event (requires Google credentials)
+POST {{baseUrl}}/api/calendar/create
+Content-Type: application/json
+
+{
+  "summary": "Demo meeting",
+  "start": "2026-03-12T14:00:00Z",
+  "end": "2026-03-12T14:30:00Z",
+  "description": "Created via API",
+  "location": "Online"
+}
+
+### Create event with invalid datetime (missing timezone offset)
+POST {{baseUrl}}/api/calendar/create
+Content-Type: application/json
+
+{
+  "summary": "Invalid time example",
+  "start": "2026-03-12T14:00:00",
+  "end": "2026-03-12T14:30:00",
+  "description": "No timezone offset"
+}
+
+### List events with invalid time_min (missing timezone offset)
+GET {{baseUrl}}/api/calendar/events?max_results=5&time_min=2026-03-12T14:00:00
