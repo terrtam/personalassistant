@@ -1,7 +1,7 @@
-import { ChatUi } from './components/chat/chat-ui'
+import { ChatPage } from './components/ChatPage'
 
 function App() {
-  return <ChatUi />
+  return <ChatPage />
 }
 
 export default App

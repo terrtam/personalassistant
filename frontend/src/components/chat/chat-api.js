@@ -1,18 +1,17 @@
+import axios from 'axios'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export async function askLlm(question, k = 5) {
-  const response = await fetch(`${API_BASE}/api/llm/ask`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ question, k }),
-  })
-
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const detail = typeof data?.detail === 'string' ? data.detail : 'Request failed.'
-    throw new Error(detail)
+  try {
+    const response = await axios.post(`${API_BASE}/api/llm/ask`, { question, k })
+    return response.data
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const detail =
+        typeof error.response?.data?.detail === 'string' ? error.response.data.detail : error.message
+      throw new Error(detail || 'Request failed.')
+    }
+    throw new Error('Request failed.')
   }
-  return data
 }
