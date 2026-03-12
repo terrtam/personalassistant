@@ -1,26 +1,36 @@
 @baseUrl = http://127.0.0.1:8000
+@contentType = application/json
 
 ### Intent routing: create event (requires Google credentials)
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Schedule meeting tomorrow at 3pm",
+  "question": "Schedule meeting tomorrow at 3pm for 30 minutes",
   "k": 5
 }
 
-### Intent routing: missing time clarification
+### Intent routing: missing time + duration clarification
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Schedule meeting tomorrow",
+  "question": "Schedule planning session tomorrow",
+  "k": 5
+}
+
+### Intent routing: provide time + duration for previous request
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "At 4pm for 30 minutes",
   "k": 5
 }
 
 ### Intent routing: query calendar (requires Google credentials)
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "What do I have this week?",
@@ -29,34 +39,70 @@ Content-Type: application/json
 
 ### Intent routing: update event (requires Google credentials)
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "Move my meeting to Monday at 9am",
   "k": 5
 }
 
+### Intent routing: create delete target (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "Schedule lunch with Sam tomorrow at noon for 60 minutes",
+  "k": 5
+}
+
 ### Intent routing: delete event (requires Google credentials)
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "Cancel lunch with Sam tomorrow at noon",
   "k": 5
 }
 
-### Intent routing: conflict scenario (requires an existing event at the same time)
+### Intent routing: delete event confirmation (send after confirmation prompt)
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Schedule demo call today at 3pm",
+  "question": "yes",
+  "k": 5
+}
+
+### Intent routing: create conflict target (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "Schedule focus block tomorrow at 5pm for 30 minutes",
+  "k": 5
+}
+
+### Intent routing: conflict scenario (requires an existing event at the same time)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "Schedule demo call tomorrow at 5pm for 30 minutes",
+  "k": 5
+}
+
+### Intent routing: resolve conflict (reply after conflict prompt)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "At 6pm",
   "k": 5
 }
 
 ### Intent routing: query notes
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "What notes do I have?",
@@ -65,7 +111,7 @@ Content-Type: application/json
 
 ### Intent routing: create note
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "Remember to buy groceries",
@@ -74,34 +120,34 @@ Content-Type: application/json
 
 ### Intent routing: update note
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Update my grocery note to include eggs",
+  "question": "Update my groceries note to include eggs",
   "k": 5
 }
 
 ### Intent routing: rename note
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Rename my grocery note to Shopping list",
+  "question": "Rename my groceries note to Shopping list",
   "k": 5
 }
 
 ### Intent routing: delete note
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
-  "question": "Delete the grocery note",
+  "question": "Delete the Shopping list note",
   "k": 5
 }
 
 ### Intent routing: delete note confirmation
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "yes",
@@ -110,7 +156,7 @@ Content-Type: application/json
 
 ### Intent routing: rag query
 POST {{baseUrl}}/api/llm/ask
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {
   "question": "Summarize the uploaded paper",

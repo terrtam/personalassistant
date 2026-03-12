@@ -1341,17 +1341,20 @@ async def ask_question(payload: AskRequest) -> AskResponse:
         )
     if intent == "update_note" or (intent == "chat" and _is_notes_update(message)):
         intent = "update_note"
-        note_query = (
-            title
-            or _extract_note_title_candidate(message, intent)
-            or _extract_notes_query(message)
+        wants_rename = _wants_note_rename(message)
+        extracted_query = _extract_note_title_candidate(message, intent) or _extract_notes_query(
+            message
         )
+        if wants_rename and extracted_query:
+            note_query = extracted_query
+        else:
+            note_query = title or extracted_query
         new_title = _extract_note_new_title(message)
         note_content = content or _extract_note_content(message, intent)
-        if _wants_note_rename(message) and not new_title and note_content:
+        if wants_rename and not new_title and note_content:
             new_title, note_content = note_content, None
         if not note_query:
-            note_field = "title" if _wants_note_rename(message) else "content"
+            note_field = "title" if wants_rename else "content"
             set_pending(
                 PendingIntent(
                     intent=intent,
@@ -1385,7 +1388,7 @@ async def ask_question(payload: AskRequest) -> AskResponse:
                     time=None,
                     content=note_content,
                     new_title=new_title,
-                    note_field="title" if _wants_note_rename(message) else "content",
+                    note_field="title" if wants_rename else "content",
                     selection=candidates,
                 )
             )
@@ -1396,7 +1399,7 @@ async def ask_question(payload: AskRequest) -> AskResponse:
             )
         target = candidates[0]
         if not note_content and not new_title:
-            note_field = "title" if _wants_note_rename(message) else "content"
+            note_field = "title" if wants_rename else "content"
             set_pending(
                 PendingIntent(
                     intent=intent,
