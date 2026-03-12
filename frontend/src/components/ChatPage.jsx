@@ -18,28 +18,32 @@ function ChatPage() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [attachments, setAttachments] = useState([])
   const endRef = useRef(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isLoading])
 
-  const handleSend = async (text) => {
+  const handleSend = async (text, files = []) => {
     const trimmed = text.trim()
-    if (!trimmed || isLoading) return
+    const safeFiles = Array.isArray(files) ? files : []
+    if ((!trimmed && safeFiles.length === 0) || isLoading) return
 
     const userMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: trimmed,
+      content: trimmed || 'Sent with attachments.',
+      attachments: safeFiles,
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    setAttachments([])
     setIsLoading(true)
 
     try {
-      const response = await askLlm(trimmed, 5)
+      const response = await askLlm(trimmed || 'Sent with attachments.', 5)
       const assistantMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
@@ -78,7 +82,12 @@ function ChatPage() {
             <ScrollArea className="flex-1">
               <div className="space-y-4 py-6 pr-4 scroll-smooth">
                 {messages.map((message) => (
-                  <ChatMessage key={message.id} role={message.role} content={message.content} />
+                  <ChatMessage
+                    key={message.id}
+                    role={message.role}
+                    content={message.content}
+                    attachments={message.attachments}
+                  />
                 ))}
                 {isLoading ? (
                   <ChatMessage role="assistant" content="Thinking..." />
@@ -90,7 +99,14 @@ function ChatPage() {
         </main>
 
         <div className="border-t border-slate-200 bg-white px-4 py-4">
-          <ChatInput value={input} onChange={setInput} onSend={handleSend} isLoading={isLoading} />
+          <ChatInput
+            attachments={attachments}
+            isLoading={isLoading}
+            onAttachmentsChange={setAttachments}
+            onChange={setInput}
+            onSend={handleSend}
+            value={input}
+          />
         </div>
       </div>
     </div>

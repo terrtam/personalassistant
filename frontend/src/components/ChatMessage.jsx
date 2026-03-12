@@ -1,10 +1,14 @@
+import { Paperclip } from 'lucide-react'
+
 import { Avatar, AvatarFallback } from './ui/avatar'
+import { Badge } from './ui/badge'
 import { Card, CardContent } from './ui/card'
 import { cn } from '../lib/utils'
 import ReactMarkdown from 'react-markdown'
 
-function ChatMessage({ role, content }) {
+function ChatMessage({ role, content, attachments = [] }) {
   const isUser = role === 'user'
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0
 
   return (
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
@@ -36,6 +40,16 @@ function ChatMessage({ role, content }) {
             >
               {content}
             </ReactMarkdown>
+            {hasAttachments ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attachments.map((file) => (
+                  <Badge className="gap-1 bg-white text-slate-700" key={file.id}>
+                    <Paperclip size={12} />
+                    <span className="text-xs">{file.name}</span>
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
