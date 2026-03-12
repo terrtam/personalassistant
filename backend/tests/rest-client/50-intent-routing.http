@@ -1,0 +1,118 @@
+@baseUrl = http://127.0.0.1:8000
+
+### Intent routing: create event (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Schedule meeting tomorrow at 3pm",
+  "k": 5
+}
+
+### Intent routing: missing time clarification
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Schedule meeting tomorrow",
+  "k": 5
+}
+
+### Intent routing: query calendar (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "What do I have this week?",
+  "k": 5
+}
+
+### Intent routing: update event (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Move my meeting to Monday at 9am",
+  "k": 5
+}
+
+### Intent routing: delete event (requires Google credentials)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Cancel lunch with Sam tomorrow at noon",
+  "k": 5
+}
+
+### Intent routing: conflict scenario (requires an existing event at the same time)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Schedule demo call today at 3pm",
+  "k": 5
+}
+
+### Intent routing: query notes
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "What notes do I have?",
+  "k": 5
+}
+
+### Intent routing: create note
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Remember to buy groceries",
+  "k": 5
+}
+
+### Intent routing: update note
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Update my grocery note to include eggs",
+  "k": 5
+}
+
+### Intent routing: rename note
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Rename my grocery note to Shopping list",
+  "k": 5
+}
+
+### Intent routing: delete note
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Delete the grocery note",
+  "k": 5
+}
+
+### Intent routing: delete note confirmation
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "yes",
+  "k": 5
+}
+
+### Intent routing: rag query
+POST {{baseUrl}}/api/llm/ask
+Content-Type: application/json
+
+{
+  "question": "Summarize the uploaded paper",
+  "k": 5
+}

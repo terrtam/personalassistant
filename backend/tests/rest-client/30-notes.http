@@ -40,3 +40,6 @@ client.test("List contains at least one note", function () {
   client.assert(response.body.length >= 1, "Expected at least one note");
 });
 %}
+
+### Delete note (requires confirmation)
+DELETE {{baseUrl}}/api/notes/{{response.body[0].id}}?confirm=true

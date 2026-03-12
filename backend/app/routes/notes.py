@@ -1,42 +1,45 @@
-from datetime import datetime, UTC
-from threading import Lock
-from uuid import uuid4
-
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from fastapi import Query
+
+from fastapi import HTTPException
+
+from app.services import notes_service
+from app.services.notes_service import CreateNoteRequest, Note, UpdateNoteRequest
 
 router = APIRouter(prefix="/notes", tags=["notes"])
-
-_notes: list["Note"] = []
-_notes_lock = Lock()
-
-
-class CreateNoteRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=120)
-    content: str = Field(..., min_length=1, max_length=5000)
-
-
-class Note(BaseModel):
-    id: str
-    title: str
-    content: str
-    created_at: datetime
 
 
 @router.get("", response_model=list[Note])
 async def list_notes() -> list[Note]:
-    with _notes_lock:
-        return list(_notes)
+    return notes_service.list_notes()
 
 
 @router.post("", response_model=Note, status_code=201)
 async def create_note(payload: CreateNoteRequest) -> Note:
-    note = Note(
-        id=str(uuid4()),
-        title=payload.title.strip(),
-        content=payload.content.strip(),
-        created_at=datetime.now(UTC),
-    )
-    with _notes_lock:
-        _notes.append(note)
-    return note
+    return notes_service.create_note(payload)
+
+
+@router.put("/{note_id}", response_model=Note)
+async def update_note(note_id: str, payload: UpdateNoteRequest) -> Note:
+    try:
+        return notes_service.update_note(note_id, payload)
+    except ValueError as exc:
+        detail = str(exc)
+        status = 400 if "Nothing to update" in detail else 404
+        raise HTTPException(status_code=status, detail=detail) from exc
+
+
+@router.delete("/{note_id}", response_model=Note)
+async def delete_note(
+    note_id: str,
+    confirm: bool = Query(default=False, description="Set true to confirm deletion."),
+) -> Note:
+    if not confirm:
+        raise HTTPException(
+            status_code=409,
+            detail="Deletion requires confirmation. Retry with ?confirm=true.",
+        )
+    try:
+        return notes_service.delete_note(note_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

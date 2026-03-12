@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Card, CardContent } from './ui/card'
 import { cn } from '../lib/utils'
+import ReactMarkdown from 'react-markdown'
 
 function ChatMessage({ role, content }) {
   const isUser = role === 'user'
@@ -19,8 +20,22 @@ function ChatMessage({ role, content }) {
             isUser ? 'bg-slate-200 text-slate-900' : 'bg-slate-50 text-slate-900',
           )}
         >
-          <CardContent className="p-3 text-sm leading-relaxed whitespace-pre-wrap">
-            {content}
+          <CardContent className="p-3 text-sm leading-relaxed break-words">
+            <ReactMarkdown
+              components={{
+                p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                strong: (props) => <strong className="font-semibold" {...props} />,
+                em: (props) => <em className="italic" {...props} />,
+                ul: (props) => <ul className="mb-2 list-disc pl-5" {...props} />,
+                ol: (props) => <ol className="mb-2 list-decimal pl-5" {...props} />,
+                li: (props) => <li className="mb-1 last:mb-0" {...props} />,
+                code: (props) => (
+                  <code className="rounded bg-slate-200 px-1 py-0.5 text-[0.85em]" {...props} />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
           </CardContent>
         </Card>
       </div>

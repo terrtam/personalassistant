@@ -94,3 +94,38 @@ def create_event(
         .insert(calendarId=calendar_id, body=body)
         .execute()
     )
+
+
+def update_event(
+    *,
+    calendar_id: str,
+    event_id: str,
+    summary: str | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    description: str | None = None,
+    location: str | None = None,
+) -> dict:
+    service = get_calendar_service()
+    body: dict[str, object] = {}
+    if summary is not None:
+        body["summary"] = summary
+    if start is not None:
+        body["start"] = {"dateTime": start.isoformat()}
+    if end is not None:
+        body["end"] = {"dateTime": end.isoformat()}
+    if description is not None:
+        body["description"] = description
+    if location is not None:
+        body["location"] = location
+
+    return (
+        service.events()
+        .patch(calendarId=calendar_id, eventId=event_id, body=body)
+        .execute()
+    )
+
+
+def delete_event(*, calendar_id: str, event_id: str) -> None:
+    service = get_calendar_service()
+    service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
