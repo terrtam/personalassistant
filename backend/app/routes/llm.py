@@ -1,3 +1,12 @@
+"""
+LLM API router.
+
+Defines endpoints that handle user messages and route them through the
+assistant pipeline. Requests are analyzed for intent and dispatched to
+the appropriate services such as calendar operations, note management,
+or general conversational responses.
+"""
+
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException

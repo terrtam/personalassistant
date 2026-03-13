@@ -1,3 +1,11 @@
+"""
+Google Calendar service utilities.
+
+Handles authentication and provides helper functions for interacting
+with the Google Calendar API, including listing, creating, updating,
+and deleting calendar events.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

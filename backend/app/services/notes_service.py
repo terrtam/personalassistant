@@ -1,3 +1,11 @@
+"""
+In-memory notes service.
+
+Defines data models and basic CRUD operations for notes, including
+creation, retrieval, searching, updating, and deletion. Notes are
+stored in a thread-safe in-memory list.
+"""
+
 from datetime import UTC, datetime
 from threading import Lock
 from uuid import uuid4

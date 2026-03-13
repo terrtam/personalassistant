@@ -1,3 +1,10 @@
+"""
+Calendar API routes.
+
+Provides endpoints for checking Google Calendar integration,
+listing events, and creating new calendar events.
+"""
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query

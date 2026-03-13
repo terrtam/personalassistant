@@ -1,3 +1,11 @@
+"""
+Application configuration and environment settings.
+
+Defines the Settings class used to load configuration values from
+environment variables or a .env file, and provides a cached
+get_settings() helper for accessing them throughout the application.
+"""
+
 from functools import lru_cache
 
 from pydantic import Field

@@ -1,3 +1,10 @@
+"""
+Notes API routes.
+
+Defines endpoints for listing, creating, updating, and deleting notes.
+Routes delegate the main logic to the notes_service module.
+"""
+
 from fastapi import APIRouter
 from fastapi import Query
 

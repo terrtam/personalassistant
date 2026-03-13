@@ -1,3 +1,10 @@
+"""
+Application entry point for the Calendar Agent API.
+
+Creates the FastAPI app, configures middleware, and registers the
+API routers that implement the service's endpoints.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
