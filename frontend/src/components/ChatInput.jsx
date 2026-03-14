@@ -37,6 +37,12 @@ function ChatInput({ value, onChange, onSend, isLoading, attachments, onAttachme
     return (base || spoken || '').trim()
   }
 
+  const applyManualChange = (nextValue) => {
+    baseTextRef.current = nextValue.trim()
+    capturedRef.current = ''
+    onChange(nextValue)
+  }
+
   const startListening = () => {
     if (typeof window === 'undefined') return
     const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -223,9 +229,12 @@ function ChatInput({ value, onChange, onSend, isLoading, attachments, onAttachme
           className="h-11 min-w-[200px] flex-1"
           placeholder="Ask about your schedule, meetings, or notes..."
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const nextValue = event.target.value
+            applyManualChange(nextValue)
+          }}
         />
-        <CalendarPicker onSelectText={(text) => onChange(text)} />
+        <CalendarPicker onSelectText={(text) => applyManualChange(text)} />
         <Button
           type="button"
           variant="secondary"

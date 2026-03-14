@@ -151,6 +151,12 @@ export function ChatUi() {
     return (base || spoken || '').trim()
   }
 
+  const handleTextChange = (nextValue) => {
+    baseTranscriptRef.current = nextValue.trim()
+    capturedTranscriptRef.current = ''
+    setText(nextValue)
+  }
+
   const startMicCapture = () => {
     if (typeof window === 'undefined') return
 
@@ -334,7 +340,7 @@ export function ChatUi() {
               onMicToggle={onMicToggle}
               onModelChange={setModel}
               onSubmit={() => void sendUserMessage(text || 'Sent with attachments')}
-              onTextChange={setText}
+              onTextChange={handleTextChange}
               onWebToggle={() => setUseWeb((prev) => !prev)}
               status={status}
               text={text}
