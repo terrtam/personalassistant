@@ -39,11 +39,12 @@ function ChatPage() {
 
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    const outgoingAttachments = [...safeFiles]
     setAttachments([])
     setIsLoading(true)
 
     try {
-      const response = await askLlm(trimmed || 'Sent with attachments.', 5)
+      const response = await askLlm(trimmed || 'Sent with attachments.', 5, outgoingAttachments)
       const assistantMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',

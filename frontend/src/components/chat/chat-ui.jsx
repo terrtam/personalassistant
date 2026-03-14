@@ -85,7 +85,7 @@ export function ChatUi() {
     }
   }
 
-  const runAssistantReply = async (question) => {
+  const runAssistantReply = async (question, attachmentsForUpload = []) => {
     const assistantKey = `assistant-${Date.now()}`
     const assistantVersionId = `${assistantKey}-v1`
     setMessages((prev) => [
@@ -94,7 +94,7 @@ export function ChatUi() {
     ])
 
     try {
-      const result = await askLlm(question, 5)
+      const result = await askLlm(question, 5, attachmentsForUpload)
       const sources =
         Array.isArray(result?.sources) && result.sources.length
           ? result.sources.map((source, index) => ({
@@ -133,9 +133,10 @@ export function ChatUi() {
       { key: userKey, from: 'user', versions: [{ id: `${userKey}-v1`, content: trimmed }] },
     ])
     setText('')
+    const outgoingAttachments = [...attachments]
     setAttachments([])
     setStatus('streaming')
-    await runAssistantReply(trimmed)
+    await runAssistantReply(trimmed, outgoingAttachments)
   }
 
   const onConversationScroll = () => {

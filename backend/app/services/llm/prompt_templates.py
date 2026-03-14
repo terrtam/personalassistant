@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 
@@ -59,6 +60,47 @@ Evidence:
 - <supporting point with citation>
 - <supporting point with citation>
 """
+
+
+EXTRACTION_PROMPT_TEMPLATE = """You extract notes and calendar events from a document.
+
+Return ONLY valid JSON with this schema:
+{{
+  "notes": [
+    {{ "title": "...", "content": "...", "source_snippet": "..." }}
+  ],
+  "events": [
+    {{ "title": "...", "date": "YYYY-MM-DD", "time": "HH:MM" | null, "duration_minutes": 60 | null, "description": "..." | null, "source_snippet": "..." }}
+  ]
+}}
+
+Rules:
+- Use section headings to split notes when possible.
+- Include only meaningful, non-empty notes/events.
+- Dates must be ISO format (YYYY-MM-DD).
+- Times must be 24-hour HH:MM or null if missing.
+- Duration is minutes (integer) or null if missing.
+- Description is optional; set to null if missing.
+- If a date lacks a year, use the next occurrence relative to today.
+- If unsure, set a field to null.
+- Limit notes to 20 and events to 30.
+
+Today is {today}.
+
+User request:
+{instruction}
+
+Document:
+{document}
+"""
+
+
+def build_extraction_prompt(instruction: str, document: str) -> str:
+    return EXTRACTION_PROMPT_TEMPLATE.format(
+        today=datetime.now().date().isoformat(),
+        instruction=instruction.strip(),
+        document=document.strip(),
+    )
 
 
 def _format_source_metadata(metadata: dict[str, Any]) -> str:

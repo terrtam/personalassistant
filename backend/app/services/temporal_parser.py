@@ -6,6 +6,41 @@ from typing import Tuple
 
 _TIME_RE = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.IGNORECASE)
 _DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+_MD_SEP_RE = re.compile(r"\b(\d{1,2})[/-](\d{1,2})\b")
+
+_MONTHS = {
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "sept": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
+}
+
+_MONTH_DAY_RE = re.compile(
+    r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
+    r"nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})\b",
+    re.IGNORECASE,
+)
 _TIME_RANGE_RE = re.compile(
     r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|—|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b",
     re.IGNORECASE,
@@ -88,6 +123,39 @@ def extract_date(text: str, today: date | None = None) -> str | None:
         except ValueError:
             return None
 
+    month_match = _MONTH_DAY_RE.search(lowered)
+    if month_match:
+        month = _MONTHS.get(month_match.group(1).lower())
+        day = int(month_match.group(2))
+        if month:
+            try:
+                candidate = date(today_value.year, month, day)
+            except ValueError:
+                candidate = None
+            if candidate:
+                if candidate < today_value:
+                    try:
+                        candidate = date(today_value.year + 1, month, day)
+                    except ValueError:
+                        return None
+                return candidate.isoformat()
+
+    md_match = _MD_SEP_RE.search(lowered)
+    if md_match:
+        month = int(md_match.group(1))
+        day = int(md_match.group(2))
+        try:
+            candidate = date(today_value.year, month, day)
+        except ValueError:
+            candidate = None
+        if candidate:
+            if candidate < today_value:
+                try:
+                    candidate = date(today_value.year + 1, month, day)
+                except ValueError:
+                    return None
+            return candidate.isoformat()
+
     if "today" in lowered:
         return today_value.isoformat()
     if "tomorrow" in lowered:
@@ -112,6 +180,30 @@ def strip_temporal_tokens(text: str) -> str:
         "today",
         "tomorrow",
         "next",
+        "january",
+        "jan",
+        "february",
+        "feb",
+        "march",
+        "mar",
+        "april",
+        "apr",
+        "may",
+        "june",
+        "jun",
+        "july",
+        "jul",
+        "august",
+        "aug",
+        "september",
+        "sep",
+        "sept",
+        "october",
+        "oct",
+        "november",
+        "nov",
+        "december",
+        "dec",
         "monday",
         "mon",
         "tuesday",

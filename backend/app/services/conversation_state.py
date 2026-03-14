@@ -18,9 +18,21 @@ class PendingIntent:
     selection: list[dict[str, Any]] | None = None
     target: dict[str, Any] | None = None
     awaiting_confirmation: bool = False
+    bulk_notes: list[dict[str, Any]] | None = None
+    note_index: int | None = None
+    awaiting_note_confirmation: bool = False
+    saved_notes: list[str] | None = None
+    skipped_notes: list[str] | None = None
+    bulk_events: list[dict[str, Any]] | None = None
+    event_index: int | None = None
+    awaiting_event_details: bool = False
+    awaiting_bulk_event_confirmation: bool = False
+    last_attachment_text: str | None = None
+    last_attachment_filenames: list[str] | None = None
 
 
 _pending: PendingIntent | None = None
+_attachment_cache: dict[str, Any] = {}
 _lock = Lock()
 
 
@@ -39,3 +51,16 @@ def clear_pending() -> None:
     global _pending
     with _lock:
         _pending = None
+
+
+def get_attachment_cache() -> dict[str, Any]:
+    with _lock:
+        return dict(_attachment_cache)
+
+
+def set_attachment_cache(text: str | None, filenames: list[str] | None) -> None:
+    with _lock:
+        if text:
+            _attachment_cache["text"] = text
+        if filenames:
+            _attachment_cache["filenames"] = list(filenames)

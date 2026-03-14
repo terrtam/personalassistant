@@ -304,6 +304,7 @@ def create_event(
     date_str: str,
     time_str: str,
     duration_minutes: int | None,
+    description: str | None = None,
 ) -> str:
     settings = get_settings()
     summary = title.strip() if isinstance(title, str) and title.strip() else "Untitled event"
@@ -322,6 +323,7 @@ def create_event(
             summary=summary,
             start=start,
             end=end,
+            description=description,
         )
     except CalendarActionError:
         raise

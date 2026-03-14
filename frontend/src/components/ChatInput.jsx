@@ -121,6 +121,7 @@ function ChatInput({ value, onChange, onSend, isLoading, attachments, onAttachme
     Array.from(fileList ?? []).map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       name: file.name,
+      file,
     }))
 
   const mergeAttachments = (incoming) => {
