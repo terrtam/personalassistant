@@ -12,7 +12,7 @@ function ChatMessage({ role, content, attachments = [] }) {
 
   return (
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
-      <div className={cn('flex items-start gap-3', isUser && 'flex-row-reverse')}>
+      <div className={cn('flex w-full min-w-0 items-start gap-3', isUser && 'flex-row-reverse')}>
         <Avatar className={cn('h-8 w-8', isUser ? 'bg-slate-300' : 'bg-slate-200')}>
           <AvatarFallback className={cn('text-[11px]', isUser ? 'bg-slate-300 text-slate-700' : 'bg-slate-200 text-slate-600')}>
             {isUser ? 'YOU' : 'AI'}
