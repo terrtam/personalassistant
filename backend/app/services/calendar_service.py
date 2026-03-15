@@ -15,7 +15,7 @@ from app.services.calendar.google_calendar import (
 )
 
 DEFAULT_EVENT_DURATION_MINUTES = 60
-DEFAULT_QUERY_WINDOW_DAYS = 7
+DEFAULT_QUERY_WINDOW_DAYS = 30
 DEFAULT_SEARCH_WINDOW_DAYS = 30
 
 
@@ -226,9 +226,9 @@ def build_delete_confirmation_message(candidate: dict[str, Any]) -> str:
 
 def _format_events_summary(events: list[dict[str, Any]]) -> str:
     if not events:
-        return "You have no upcoming events."
+        return "You have no upcoming events in the next month."
     lines = [_format_event_line(event) for event in events]
-    return "**Upcoming Events**\n" + "\n".join(lines)
+    return "**Upcoming Events (in the next month)**\n" + "\n".join(lines)
 
 
 def _filter_events_by_title(
