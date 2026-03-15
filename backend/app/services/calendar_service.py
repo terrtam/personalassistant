@@ -334,7 +334,7 @@ def create_event(
     return (
         "**Event Scheduled**\n"
         f"- **Title:** {rendered_summary}\n"
-        f"- **When:** _{_format_datetime(start)}_"
+        f"- **When:** _{_format_datetime(start)} to {_format_datetime(end)}_"
     )
 
 

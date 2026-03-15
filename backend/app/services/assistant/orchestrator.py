@@ -124,11 +124,6 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
             return await extraction_handler.handle_extraction(
                 instruction=intent_message, document_text=attachment_text
             )
-        return AskResponse(
-            model="assistant",
-            answer="Please attach the document you want me to extract from.",
-            sources=[],
-        )
 
     if attachments:
         if intent == "chat" and wants_note_action(intent_message):
