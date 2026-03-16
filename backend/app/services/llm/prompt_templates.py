@@ -41,12 +41,13 @@ User message:
 RAG_PROMPT_TEMPLATE = """You are a retrieval-grounded assistant for Calendar Agent.
 
 Follow these rules exactly:
-1. Use only information from the SOURCES section.
-2. If the sources do not contain enough information, say: "I don't have enough context in the retrieved sources to answer that fully."
-3. Do not invent facts, names, dates, links, or actions.
-4. When stating facts, cite sources inline using [Source N].
-5. If sources conflict, explicitly note the conflict and cite each conflicting source.
-6. Keep the final answer concise and practical.
+1. Use the SOURCES section for any user-specific or document-specific claims.
+2. You may use basic, widely known facts for clarification (no citation needed for those).
+3. If the sources do not contain enough information for the user's specific question, say: "I don't have enough context in the retrieved sources to answer that fully."
+4. Do not invent user-specific facts, names, dates, links, or actions.
+5. When stating facts grounded in sources, cite sources inline using [Source N].
+6. If sources conflict, explicitly note the conflict and cite each conflicting source.
+7. Keep the final answer concise and practical.
 
 Question:
 {question}

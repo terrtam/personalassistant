@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+import re
+
 from fastapi import HTTPException
 
 from app.services.assistant.attachments import (
@@ -23,7 +25,8 @@ from app.services.assistant.handlers import calendar as calendar_handler
 from app.services.assistant.handlers import conversation as conversation_handler
 from app.services.assistant.handlers import extraction as extraction_handler
 from app.services.assistant.handlers import notes as notes_handler
-from app.services.assistant.notes_memory import retrieve_notes_memory
+from app.services.assistant.notes_memory import extract_keywords, retrieve_notes_memory
+from app.services import notes_service
 
 
 def _is_memory_question(message: str) -> bool:
@@ -53,6 +56,52 @@ def _is_memory_question(message: str) -> bool:
     if cleaned.endswith("?"):
         return True
     return cleaned.startswith(question_starters)
+
+
+def _is_explicit_rag_request(message: str) -> bool:
+    lowered = (message or "").lower()
+    if not lowered.strip():
+        return False
+    patterns = [
+        r"\bdocument\b",
+        r"\bdoc\b",
+        r"\bpdf\b",
+        r"\bfile\b",
+        r"\battachment\b",
+        r"\battached\b",
+        r"\bupload\b",
+        r"\buploaded\b",
+        r"\bsource\b",
+        r"\bknowledge base\b",
+        r"\bknowledge-base\b",
+        r"\bkb\b",
+        r"\bindex\b",
+    ]
+    return any(re.search(pattern, lowered) for pattern in patterns)
+
+
+async def _try_answer_memory_question(message: str, k: int) -> AskResponse | None:
+    sources = retrieve_notes_memory(message, k)
+    if sources:
+        clear_pending()
+        return await conversation_handler.handle_rag_from_sources(message, sources)
+
+    notes = notes_service.list_notes()
+    if not notes:
+        clear_pending()
+        return AskResponse(
+            model="assistant",
+            answer="You don't have any notes yet.",
+            sources=[],
+        )
+
+    keywords = extract_keywords(message)
+    if keywords:
+        answer = f'I don\'t see any notes mentioning "{keywords[0]}".'
+    else:
+        answer = "I don't see anything in your notes about that."
+    clear_pending()
+    return AskResponse(model="assistant", answer=answer, sources=[])
 
 
 async def handle_smoke(payload: LLMSmokeRequest) -> LLMSmokeResponse:
@@ -122,12 +171,9 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
             return response
 
     if not attachments and _is_memory_question(intent_message):
-        sources = retrieve_notes_memory(intent_message, payload.k)
-        if sources:
-            clear_pending()
-            return await conversation_handler.handle_rag_from_sources(
-                intent_message, sources
-            )
+        response = await _try_answer_memory_question(intent_message, payload.k)
+        if response is not None:
+            return response
 
     try:
         intent_data = detect_intent(intent_message)
@@ -152,6 +198,10 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
             answer="Could you clarify what you'd like me to do?",
             sources=[],
         )
+
+    if intent == "rag_query" and not attachments and not _is_explicit_rag_request(intent_message):
+        intent = "chat"
+        intent_data["intent"] = "chat"
 
     if wants_extraction_action(intent_message):
         attachment_text = merge_attachment_text(attachments) if attachments else None
@@ -181,12 +231,9 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
         return response
 
     if intent == "chat" and _is_memory_question(intent_message):
-        sources = retrieve_notes_memory(intent_message, payload.k)
-        if sources:
-            clear_pending()
-            return await conversation_handler.handle_rag_from_sources(
-                intent_message, sources
-            )
+        response = await _try_answer_memory_question(intent_message, payload.k)
+        if response is not None:
+            return response
 
     if intent == "chat":
         clear_pending()

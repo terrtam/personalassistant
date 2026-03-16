@@ -149,11 +149,12 @@ GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_TEMPERATURE=0.2
 GROQ_TIMEOUT_SECONDS=30
 
-EMBEDDING_PROVIDER=hash
+EMBEDDING_PROVIDER=huggingface
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 EMBEDDING_INDEX_PATH=./data/chroma_db
 EMBEDDING_CHUNK_SIZE=800
 EMBEDDING_CHUNK_OVERLAP=120
+EMBEDDING_MIN_SEMANTIC_SCORE=0.25
 
 OPENAI_API_KEY=
 
@@ -238,6 +239,8 @@ To use another calendar:
 3. Configure environment variables in `backend/.env`
 4. Run locally:
    `uvicorn app.main:app --reload --app-dir backend`
+
+Note: if you change `EMBEDDING_PROVIDER`, rebuild the index at `./data/chroma_db`.
 
 ### Frontend
 
