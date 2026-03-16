@@ -131,6 +131,10 @@ def _build_conflict_message(action: str, conflicts: list[dict[str, Any]]) -> str
     return f"{intro}\n{_format_conflicts(conflicts)}\n\n{follow_up}"
 
 
+def build_conflict_message(action: str, conflicts: list[dict[str, Any]]) -> str:
+    return _build_conflict_message(action, conflicts)
+
+
 def _candidate_from_event(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": event.get("id"),
@@ -285,6 +289,18 @@ def _find_conflicts(
             continue
         conflicts.append(event)
     return conflicts
+
+
+def check_event_conflicts(
+    date_str: str, time_str: str, duration_minutes: int | None
+) -> list[dict[str, Any]]:
+    start = _combine_date_time(date_str, time_str)
+    if not duration_minutes or duration_minutes <= 0:
+        raise CalendarActionError(
+            "When should the event end? (You can also say a duration like 45 minutes.)"
+        )
+    end = start + timedelta(minutes=duration_minutes)
+    return _find_conflicts(start, end)
 
 
 def _handle_calendar_error(exc: Exception) -> CalendarActionError:

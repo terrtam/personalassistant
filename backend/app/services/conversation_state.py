@@ -27,6 +27,7 @@ class PendingIntent:
     event_index: int | None = None
     awaiting_event_details: bool = False
     awaiting_bulk_event_confirmation: bool = False
+    conflicted_event_index: int | None = None
     last_attachment_text: str | None = None
     last_attachment_filenames: list[str] | None = None
 

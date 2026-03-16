@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.services import calendar_service, notes_service
+from app.services.calendar_service import CalendarActionError, CalendarConflictError
 from app.services.assistant.extraction import extract_notes_and_events
 from app.services.assistant.schemas import AskResponse
 from app.services.assistant.utils import _parse_confirmation
@@ -135,6 +136,35 @@ def _parse_event_edits(message: str) -> dict[str, str | None]:
     return edits
 
 
+def _preflight_bulk_event_conflicts(pending: PendingIntent) -> AskResponse | None:
+    if not pending.bulk_events:
+        return None
+    for idx, event in enumerate(pending.bulk_events):
+        date_str = event.get("date")
+        time_str = event.get("time")
+        duration = event.get("duration_minutes")
+        if not date_str or not time_str or duration is None:
+            continue
+        try:
+            conflicts = calendar_service.check_event_conflicts(
+                date_str, time_str, duration
+            )
+        except CalendarActionError as exc:
+            return AskResponse(model="assistant", answer=str(exc), sources=[])
+        if conflicts:
+            pending.event_index = idx
+            pending.conflicted_event_index = idx
+            pending.awaiting_event_details = True
+            pending.awaiting_bulk_event_confirmation = False
+            set_pending(pending)
+            return AskResponse(
+                model="assistant",
+                answer=calendar_service.build_conflict_message("create", conflicts),
+                sources=[],
+            )
+    return None
+
+
 async def handle_extraction(
     instruction: str,
     document_text: str,
@@ -195,6 +225,9 @@ async def handle_extraction(
             )
         pending.awaiting_bulk_event_confirmation = True
         set_pending(pending)
+        conflict_response = _preflight_bulk_event_conflicts(pending)
+        if conflict_response is not None:
+            return conflict_response
         return AskResponse(
             model="assistant",
             answer=_format_event_confirmation(events),
@@ -318,12 +351,18 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                         delta = delta_minutes
                         duration = delta if delta > 0 else None
 
+                is_conflict_resolution = pending.conflicted_event_index == idx
+                merged_date = parsed_date or (event.get("date") if is_conflict_resolution else None)
+                merged_time = parsed_time
+                merged_duration = duration or (
+                    event.get("duration_minutes") if is_conflict_resolution else None
+                )
                 missing = []
-                if not parsed_date:
+                if not merged_date:
                     missing.append("**Date**")
-                if not parsed_time:
+                if not merged_time:
                     missing.append("**Time**")
-                if not duration:
+                if not merged_duration:
                     missing.append("**Duration**")
                 if missing:
                     return AskResponse(
@@ -334,9 +373,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                         sources=[],
                     )
 
-                event["date"] = parsed_date
-                event["time"] = parsed_time
-                event["duration_minutes"] = duration
+                event["date"] = merged_date
+                event["time"] = merged_time
+                event["duration_minutes"] = merged_duration
+                pending.conflicted_event_index = None
                 pending.bulk_events[idx] = event
 
                 next_missing = _next_missing_event_index(pending.bulk_events)
@@ -352,6 +392,9 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 pending.awaiting_event_details = False
                 pending.awaiting_bulk_event_confirmation = True
                 set_pending(pending)
+                conflict_response = _preflight_bulk_event_conflicts(pending)
+                if conflict_response is not None:
+                    return conflict_response
                 return AskResponse(
                     model="assistant",
                     answer=_format_event_confirmation(pending.bulk_events),
@@ -359,6 +402,9 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 )
 
         if pending.awaiting_bulk_event_confirmation:
+            conflict_response = _preflight_bulk_event_conflicts(pending)
+            if conflict_response is not None:
+                return conflict_response
             decision = _parse_confirmation(message)
             if decision is None:
                 return AskResponse(
@@ -375,7 +421,7 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 )
 
             created_titles: list[str] = []
-            for event in pending.bulk_events:
+            for idx, event in enumerate(pending.bulk_events):
                 try:
                     answer = calendar_service.create_event(
                         event.get("title"),
@@ -386,6 +432,13 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                     )
                     _ = answer
                     created_titles.append(str(event.get("title") or "Untitled"))
+                except CalendarConflictError as exc:
+                    pending.event_index = idx
+                    pending.conflicted_event_index = idx
+                    pending.awaiting_event_details = True
+                    pending.awaiting_bulk_event_confirmation = False
+                    set_pending(pending)
+                    return AskResponse(model="assistant", answer=str(exc), sources=[])
                 except Exception as exc:
                     clear_pending()
                     return AskResponse(
@@ -417,6 +470,9 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
             )
         pending.awaiting_bulk_event_confirmation = True
         set_pending(pending)
+        conflict_response = _preflight_bulk_event_conflicts(pending)
+        if conflict_response is not None:
+            return conflict_response
         return AskResponse(
             model="assistant",
             answer=_format_event_confirmation(pending.bulk_events),
