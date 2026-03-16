@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { askLlm } from './chat/chat-api'
 import { ChatInput } from './ChatInput'
 import { ChatMessage } from './ChatMessage'
+import { NotesPanel } from './NotesPanel'
 import { ScrollArea } from './ui/scroll-area'
 import { Separator } from './ui/separator'
 
@@ -19,6 +20,7 @@ function ChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState([])
+  const [notesRefreshTick, setNotesRefreshTick] = useState(0)
   const endRef = useRef(null)
 
   useEffect(() => {
@@ -60,12 +62,13 @@ function ChatPage() {
       ])
     } finally {
       setIsLoading(false)
+      setNotesRefreshTick((prev) => prev + 1)
     }
   }
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-3xl flex-col">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col">
         <header className="px-4 pt-6 pb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
             AI Personal Assistant
@@ -78,37 +81,40 @@ function ChatPage() {
 
         <Separator />
 
-        <main className="flex min-h-0 flex-1 flex-col px-4">
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ScrollArea className="flex-1">
-              <div className="space-y-4 py-6 pr-4 scroll-smooth">
-                {messages.map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    role={message.role}
-                    content={message.content}
-                    attachments={message.attachments}
-                  />
-                ))}
-                {isLoading ? (
-                  <ChatMessage role="assistant" content="Thinking..." />
-                ) : null}
-                <div ref={endRef} />
-              </div>
-            </ScrollArea>
-          </div>
-        </main>
+        <main className="flex min-h-0 flex-1 flex-col gap-6 px-4 py-6 lg:flex-row">
+          <section className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <ScrollArea className="flex-1">
+                <div className="space-y-4 pr-4 scroll-smooth">
+                  {messages.map((message) => (
+                    <ChatMessage
+                      key={message.id}
+                      role={message.role}
+                      content={message.content}
+                      attachments={message.attachments}
+                    />
+                  ))}
+                  {isLoading ? <ChatMessage role="assistant" content="Thinking..." /> : null}
+                  <div ref={endRef} />
+                </div>
+              </ScrollArea>
+            </div>
+            <div className="mt-6 border-t border-slate-200 bg-white pt-4">
+              <ChatInput
+                attachments={attachments}
+                isLoading={isLoading}
+                onAttachmentsChange={setAttachments}
+                onChange={setInput}
+                onSend={handleSend}
+                value={input}
+              />
+            </div>
+          </section>
 
-        <div className="border-t border-slate-200 bg-white px-4 py-4">
-          <ChatInput
-            attachments={attachments}
-            isLoading={isLoading}
-            onAttachmentsChange={setAttachments}
-            onChange={setInput}
-            onSend={handleSend}
-            value={input}
-          />
-        </div>
+          <aside className="w-full lg:w-[320px] xl:w-[360px]">
+            <NotesPanel refreshSignal={notesRefreshTick} />
+          </aside>
+        </main>
       </div>
     </div>
   )
