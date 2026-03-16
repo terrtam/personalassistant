@@ -289,9 +289,91 @@ def _format_notes_list(notes: list[notes_service.Note], query: str | None = None
     return "\n".join(lines)
 
 
+def _format_note_preview(title: str | None, content: str | None) -> str:
+    safe_title = (title or "Untitled").strip() or "Untitled"
+    safe_content = (content or "").strip()
+    if len(safe_content) > 500:
+        safe_content = f"{safe_content[:497]}..."
+    return (
+        "**Review Note**\n"
+        f"- **Title:** {safe_title}\n"
+        f"- **Content:** {safe_content}\n\n"
+        "Reply `yes` to save, `no` to cancel, or say `edit title ...` / `edit content ...`."
+    )
+
+
+def _parse_note_edit(message: str) -> tuple[str | None, str | None]:
+    import re
+
+    if not message:
+        return None, None
+    match_title = re.match(r"^\s*edit\s+title\s*[:\-]?\s*(.+)$", message, re.IGNORECASE)
+    if match_title:
+        title = match_title.group(1).strip()
+        return (title or None), None
+    match_content = re.match(
+        r"^\s*edit\s+content\s*[:\-]?\s*(.+)$", message, re.IGNORECASE
+    )
+    if match_content:
+        content = match_content.group(1).strip()
+        return None, (content or None)
+    return None, None
+
+
 def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
     if pending.intent not in {"create_note", "update_note", "delete_note"}:
         return None
+
+    if pending.intent == "create_note" and pending.awaiting_confirmation:
+        new_title, new_content = _parse_note_edit(message)
+        if new_title or new_content:
+            set_pending(
+                PendingIntent(
+                    intent=pending.intent,
+                    title=new_title or pending.title,
+                    date=None,
+                    time=None,
+                    content=new_content or pending.content,
+                    awaiting_confirmation=True,
+                )
+            )
+            return AskResponse(
+                model="notes",
+                answer=_format_note_preview(
+                    new_title or pending.title, new_content or pending.content
+                ),
+                sources=[],
+            )
+        decision = _parse_confirmation(message)
+        if decision is None:
+            return AskResponse(
+                model="notes",
+                answer="**Confirmation Needed**\n- Reply `yes` to save or `no` to cancel.",
+                sources=[],
+            )
+        if decision:
+            clear_pending()
+            title = pending.title or _derive_note_title(pending.content or "")
+            note = notes_service.create_note(
+                notes_service.CreateNoteRequest(
+                    title=title, content=pending.content or ""
+                )
+            )
+            return AskResponse(
+                model="notes",
+                answer=(
+                    "**Note Saved**\n"
+                    f"- **Title:** {note.title}\n"
+                    f"- **Content:** {note.content}"
+                ),
+                sources=[],
+            )
+        clear_pending()
+        return AskResponse(
+            model="notes",
+            answer="Okay, I won't save it.",
+            sources=[],
+        )
 
     if pending.awaiting_confirmation and pending.intent == "delete_note":
         decision = _parse_confirmation(message)
@@ -552,17 +634,19 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 sources=[],
             )
         title = pending.title or _derive_note_title(content)
-        clear_pending()
-        note = notes_service.create_note(
-            notes_service.CreateNoteRequest(title=title, content=content)
+        set_pending(
+            PendingIntent(
+                intent=pending.intent,
+                title=title,
+                date=None,
+                time=None,
+                content=content,
+                awaiting_confirmation=True,
+            )
         )
         return AskResponse(
             model="notes",
-            answer=(
-                "**Note Saved**\n"
-                f"- **Title:** {note.title}\n"
-                f"- **Content:** {note.content}"
-            ),
+            answer=_format_note_preview(title, content),
             sources=[],
         )
 
@@ -703,16 +787,19 @@ def handle_intent(message: str, intent: str, intent_data: dict[str, object]) -> 
                 sources=[],
             )
         note_title = title or _derive_note_title(note_content)
-        note = notes_service.create_note(
-            notes_service.CreateNoteRequest(title=note_title, content=note_content)
+        set_pending(
+            PendingIntent(
+                intent=intent,
+                title=note_title,
+                date=None,
+                time=None,
+                content=note_content,
+                awaiting_confirmation=True,
+            )
         )
         return AskResponse(
             model="notes",
-            answer=(
-                "**Note Saved**\n"
-                f"- **Title:** {note.title}\n"
-                f"- **Content:** {note.content}"
-            ),
+            answer=_format_note_preview(note_title, note_content),
             sources=[],
         )
     if intent == "update_note" or (intent == "chat" and _is_notes_update(message)):

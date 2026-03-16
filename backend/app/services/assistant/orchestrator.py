@@ -36,6 +36,8 @@ def _is_memory_question(message: str) -> bool:
     first_person_tokens = ["i ", " me ", " my ", " mine ", " do i ", " did i ", " am i "]
     if not any(token in f" {cleaned} " for token in first_person_tokens):
         return False
+    if re.match(r"^(have|has)\s+i\b", cleaned):
+        return True
     question_starters = (
         "what ",
         "which ",
@@ -52,6 +54,8 @@ def _is_memory_question(message: str) -> bool:
         "are ",
         "was ",
         "were ",
+        "have ",
+        "has ",
     )
     if cleaned.endswith("?"):
         return True
@@ -96,10 +100,20 @@ async def _try_answer_memory_question(message: str, k: int) -> AskResponse | Non
         )
 
     keywords = extract_keywords(message)
+    recent_notes = sorted(notes, key=lambda note: note.created_at, reverse=True)[:5]
+    lines = ["**Possible Notes**", "I didn't find a direct match, but here are recent notes:"]
+    for note in recent_notes:
+        title = (note.title or "Untitled").strip()
+        content = " ".join((note.content or "").split())
+        if len(content) > 120:
+            content = f"{content[:117]}..."
+        created = note.created_at.astimezone().strftime("%a %b %d, %Y")
+        lines.append(f"- **{title}**: {content} (_{created}_)")
     if keywords:
-        answer = f'I don\'t see any notes mentioning "{keywords[0]}".'
+        lines.append(f'\nDo any of these relate to "{keywords[0]}"?')
     else:
-        answer = "I don't see anything in your notes about that."
+        lines.append("\nDo any of these look relevant?")
+    answer = "\n".join(lines)
     clear_pending()
     return AskResponse(model="assistant", answer=answer, sources=[])
 
