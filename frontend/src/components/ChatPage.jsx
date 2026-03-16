@@ -68,7 +68,7 @@ function ChatPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col">
         <header className="px-4 pt-6 pb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
             AI Personal Assistant
@@ -111,7 +111,7 @@ function ChatPage() {
             </div>
           </section>
 
-          <aside className="w-full lg:w-[320px] xl:w-[360px]">
+          <aside className="w-full lg:w-[460px] xl:w-[520px]">
             <NotesPanel refreshSignal={notesRefreshTick} />
           </aside>
         </main>

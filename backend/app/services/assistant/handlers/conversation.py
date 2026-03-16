@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+from typing import Any
+
 from fastapi import HTTPException
 
 from app.services.assistant.attachments import InlineAttachment, attachments_to_sources
@@ -34,7 +36,10 @@ async def handle_chat(message: str) -> AskResponse:
         ) from exc
 
 
-async def handle_rag_fallback(message: str, k: int) -> AskResponse:
+async def _answer_with_sources(
+    question: str,
+    sources: list[dict[str, Any]],
+) -> AskResponse:
     try:
         llm = get_groq_chat_model()
     except Exception as exc:
@@ -43,25 +48,7 @@ async def handle_rag_fallback(message: str, k: int) -> AskResponse:
             detail=f"Groq configuration error: {str(exc)}",
         ) from exc
 
-    try:
-        results = search_index(query=message, k=k)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to search embedding index: {str(exc)}",
-        ) from exc
-
-    if not results:
-        raise HTTPException(
-            status_code=404,
-            detail="No relevant context found in embedding index.",
-        )
-
-    prompt = build_rag_prompt(question=message, sources=results)
+    prompt = build_rag_prompt(question=question, sources=sources)
 
     try:
         result = await llm.ainvoke(prompt)
@@ -71,7 +58,7 @@ async def handle_rag_fallback(message: str, k: int) -> AskResponse:
         return AskResponse(
             model=llm.model_name,
             answer=str(content),
-            sources=[AskSource(**item) for item in results],
+            sources=[AskSource(**item) for item in sources],
         )
     except Exception as exc:
         message = str(exc).lower()
@@ -95,6 +82,28 @@ async def handle_rag_fallback(message: str, k: int) -> AskResponse:
         ) from exc
 
 
+async def handle_rag_fallback(message: str, k: int) -> AskResponse:
+    try:
+        results = search_index(query=message, k=k)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search embedding index: {str(exc)}",
+        ) from exc
+
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail="No relevant context found in embedding index.",
+        )
+
+    return await _answer_with_sources(message, results)
+
+
 async def handle_inline_rag(
     message: str, attachments: list[InlineAttachment]
 ) -> AskResponse:
@@ -108,29 +117,10 @@ async def handle_inline_rag(
 
     sources = attachments_to_sources(attachments)
     question = message.strip() or "Summarize the attached document."
-    prompt = build_rag_prompt(question=question, sources=sources)
+    return await _answer_with_sources(question, sources)
 
-    try:
-        result = await llm.ainvoke(prompt)
-        content = result.content if hasattr(result, "content") else str(result)
-        if isinstance(content, list):
-            content = " ".join(str(item) for item in content)
-        return AskResponse(
-            model=llm.model_name,
-            answer=str(content),
-            sources=[AskSource(**item) for item in sources],
-        )
-    except Exception as exc:
-        message_lower = str(exc).lower()
-        status = (
-            503
-            if any(
-                token in message_lower
-                for token in ["timeout", "temporar", "unavailable", "rate limit", "overloaded"]
-            )
-            else 502
-        )
-        raise HTTPException(
-            status_code=status,
-            detail="Groq provider request failed. Check API key, model, and network connectivity.",
-        ) from exc
+
+async def handle_rag_from_sources(
+    question: str, sources: list[dict[str, Any]]
+) -> AskResponse:
+    return await _answer_with_sources(question, sources)

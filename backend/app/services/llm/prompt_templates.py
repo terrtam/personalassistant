@@ -54,11 +54,8 @@ Question:
 SOURCES:
 {context}
 
-Response format:
-Answer: <direct answer with citations>
-Evidence:
-- <supporting point with citation>
-- <supporting point with citation>
+Response:
+Provide a concise answer with inline [Source N] citations.
 """
 
 

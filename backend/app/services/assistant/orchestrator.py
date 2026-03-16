@@ -23,6 +23,36 @@ from app.services.assistant.handlers import calendar as calendar_handler
 from app.services.assistant.handlers import conversation as conversation_handler
 from app.services.assistant.handlers import extraction as extraction_handler
 from app.services.assistant.handlers import notes as notes_handler
+from app.services.assistant.notes_memory import retrieve_notes_memory
+
+
+def _is_memory_question(message: str) -> bool:
+    cleaned = (message or "").strip().lower()
+    if not cleaned:
+        return False
+    first_person_tokens = ["i ", " me ", " my ", " mine ", " do i ", " did i ", " am i "]
+    if not any(token in f" {cleaned} " for token in first_person_tokens):
+        return False
+    question_starters = (
+        "what ",
+        "which ",
+        "who ",
+        "when ",
+        "where ",
+        "why ",
+        "how ",
+        "do ",
+        "did ",
+        "can ",
+        "should ",
+        "is ",
+        "are ",
+        "was ",
+        "were ",
+    )
+    if cleaned.endswith("?"):
+        return True
+    return cleaned.startswith(question_starters)
 
 
 async def handle_smoke(payload: LLMSmokeRequest) -> LLMSmokeResponse:
@@ -91,6 +121,14 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
         if response is not None:
             return response
 
+    if not attachments and _is_memory_question(intent_message):
+        sources = retrieve_notes_memory(intent_message, payload.k)
+        if sources:
+            clear_pending()
+            return await conversation_handler.handle_rag_from_sources(
+                intent_message, sources
+            )
+
     try:
         intent_data = detect_intent(intent_message)
     except ValueError as exc:
@@ -142,6 +180,14 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
     if response is not None:
         return response
 
+    if intent == "chat" and _is_memory_question(intent_message):
+        sources = retrieve_notes_memory(intent_message, payload.k)
+        if sources:
+            clear_pending()
+            return await conversation_handler.handle_rag_from_sources(
+                intent_message, sources
+            )
+
     if intent == "chat":
         clear_pending()
         return await conversation_handler.handle_chat(intent_message)
@@ -149,7 +195,19 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
     if attachments and intent == "rag_query":
         return await conversation_handler.handle_inline_rag(intent_message, attachments)
 
-    return await conversation_handler.handle_rag_fallback(intent_message, payload.k)
+    try:
+        return await conversation_handler.handle_rag_fallback(
+            intent_message, payload.k
+        )
+    except HTTPException as exc:
+        if exc.status_code == 404 and not attachments:
+            sources = retrieve_notes_memory(intent_message, payload.k)
+            if sources:
+                clear_pending()
+                return await conversation_handler.handle_rag_from_sources(
+                    intent_message, sources
+                )
+        raise
 
 
 async def handle_ask_with_upload(

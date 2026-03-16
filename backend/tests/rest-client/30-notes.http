@@ -22,6 +22,50 @@ client.test("Create note response contains id", function () {
 });
 %}
 
+### Create preference note
+POST {{baseUrl}}/api/notes
+Content-Type: {{contentType}}
+
+{
+  "title": "i like pineapples",
+  "content": "i like pineapples"
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Create preference note returns 201", function () {
+  client.assert(response.status === 201, "Expected HTTP 201");
+});
+%}
+
+### Ask about preferences (notes memory)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "what fruits do i like",
+  "k": 3
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Ask preferences returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Answer mentions pineapples", function () {
+  const answer = (response.body.answer || "").toLowerCase();
+  client.assert(answer.includes("pineapples"), "Expected answer to mention pineapples");
+});
+
+client.test("Answer includes citation", function () {
+  const answer = response.body.answer || "";
+  client.assert(/\[Source\s+\d+\]/.test(answer), "Expected citation like [Source 1]");
+});
+%}
+
 ### List notes
 GET {{baseUrl}}/api/notes
 
