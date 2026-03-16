@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     cors_origin_ip: str = "127.0.0.1"
     cors_origin_scheme: str = "http"
     cors_origin_ports: str = "3000,5173"
+    notes_db_path: str = "./data/notes.db"
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_refresh_token: str | None = None

@@ -18,6 +18,7 @@ function NotesPanel({ refreshSignal = 0 }) {
   const isMountedRef = useRef(true)
 
   useEffect(() => {
+    isMountedRef.current = true
     return () => {
       isMountedRef.current = false
     }
