@@ -39,6 +39,23 @@ client.test("Create preference note returns 201", function () {
 });
 %}
 
+### Create instructor note
+POST {{baseUrl}}/api/notes
+Content-Type: {{contentType}}
+
+{
+  "title": "Contact Information",
+  "content": "Instructor: Dr. Emily Carter, Email: ecarter@university.edu"
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Create instructor note returns 201", function () {
+  client.assert(response.status === 201, "Expected HTTP 201");
+});
+%}
+
 ### Ask about preferences (notes memory)
 POST {{baseUrl}}/api/llm/ask
 Content-Type: {{contentType}}
@@ -58,6 +75,33 @@ client.test("Ask preferences returns 200", function () {
 client.test("Answer mentions pineapples", function () {
   const answer = (response.body.answer || "").toLowerCase();
   client.assert(answer.includes("pineapples"), "Expected answer to mention pineapples");
+});
+
+client.test("Answer includes citation", function () {
+  const answer = response.body.answer || "";
+  client.assert(/\[Source\s+\d+\]/.test(answer), "Expected citation like [Source 1]");
+});
+%}
+
+### Ask about instructor (notes memory, third-person)
+POST {{baseUrl}}/api/llm/ask
+Content-Type: {{contentType}}
+
+{
+  "question": "who is emily",
+  "k": 3
+}
+
+###
+# Test script block (supported in newer REST Client versions)
+> {%
+client.test("Ask instructor returns 200", function () {
+  client.assert(response.status === 200, "Expected HTTP 200");
+});
+
+client.test("Answer mentions Emily", function () {
+  const answer = (response.body.answer || "").toLowerCase();
+  client.assert(answer.includes("emily"), "Expected answer to mention Emily");
 });
 
 client.test("Answer includes citation", function () {

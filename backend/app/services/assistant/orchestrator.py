@@ -62,6 +62,24 @@ def _is_memory_question(message: str) -> bool:
     return cleaned.startswith(question_starters)
 
 
+def _is_question_like(message: str) -> bool:
+    cleaned = (message or "").strip().lower()
+    if not cleaned:
+        return False
+    if cleaned.endswith("?"):
+        return True
+    question_starters = (
+        "who ",
+        "what ",
+        "where ",
+        "when ",
+        "why ",
+        "how ",
+        "which ",
+    )
+    return cleaned.startswith(question_starters)
+
+
 def _is_explicit_rag_request(message: str) -> bool:
     lowered = (message or "").lower()
     if not lowered.strip():
@@ -183,6 +201,18 @@ async def handle_ask(payload: AskRequest) -> AskResponse:
         response = calendar_handler.handle_pending(message, pending)
         if response is not None:
             return response
+
+    if (
+        not attachments
+        and _is_question_like(intent_message)
+        and not _is_memory_question(intent_message)
+    ):
+        sources = retrieve_notes_memory(intent_message, payload.k)
+        if sources:
+            clear_pending()
+            return await conversation_handler.handle_rag_from_sources(
+                intent_message, sources
+            )
 
     if not attachments and _is_memory_question(intent_message):
         response = await _try_answer_memory_question(intent_message, payload.k)
