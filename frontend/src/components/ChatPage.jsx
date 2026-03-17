@@ -67,8 +67,8 @@ function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col">
+    <div className="h-screen overflow-hidden bg-white text-slate-900">
+      <div className="mx-auto flex h-screen w-full max-w-7xl flex-col">
         <header className="px-4 pt-6 pb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
             AI Personal Assistant
@@ -84,7 +84,7 @@ function ChatPage() {
         <main className="flex min-h-0 flex-1 flex-col gap-6 px-4 py-6 lg:flex-row">
           <section className="flex min-h-0 flex-1 flex-col">
             <div className="flex min-h-0 flex-1 flex-col">
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1" type="always">
                 <div className="space-y-4 pr-4 scroll-smooth">
                   {messages.map((message) => (
                     <ChatMessage
@@ -99,7 +99,7 @@ function ChatPage() {
                 </div>
               </ScrollArea>
             </div>
-            <div className="mt-6 border-t border-slate-200 bg-white pt-4">
+            <div className="mt-auto border-t border-slate-200 bg-white pt-4">
               <ChatInput
                 attachments={attachments}
                 isLoading={isLoading}
@@ -111,7 +111,7 @@ function ChatPage() {
             </div>
           </section>
 
-          <aside className="w-full lg:w-[460px] xl:w-[520px]">
+          <aside className="w-full lg:sticky lg:bottom-6 lg:self-end lg:h-[calc(100vh-10rem)] lg:w-[460px] xl:w-[520px]">
             <NotesPanel refreshSignal={notesRefreshTick} />
           </aside>
         </main>

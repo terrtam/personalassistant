@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createNote, deleteNote, listNotes, updateNote } from './notes/notes-api'
+import { ScrollArea } from './ui/scroll-area'
 
 const EMPTY_FORM = { title: '', content: '' }
 
@@ -218,118 +219,120 @@ function NotesPanel({ refreshSignal = 0 }) {
             </span>
           ) : null}
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
-          {isLoading ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-sm text-slate-500">
-              Loading notes...
-            </div>
-          ) : null}
-          {!isLoading && filteredNotes.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-sm text-slate-500">
-              {query.trim() ? 'No matching notes. Try another search.' : 'No notes yet. Add one above.'}
-            </div>
-          ) : null}
-          {filteredNotes.map((note) => {
-            const isEditing = editingId === note.id
-            const updatedLabel = renderDate(note.updated_at ?? note.created_at)
-            return (
-              <article
-                key={note.id}
-                className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
-              >
-                {isEditing ? (
-                  <div className="flex flex-col gap-2">
-                    <input
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                      value={editDraft.title}
-                      onChange={(event) =>
-                        setEditDraft((prev) => ({ ...prev, title: event.target.value }))
-                      }
-                    />
-                    <textarea
-                      className="min-h-[80px] w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                      value={editDraft.content}
-                      onChange={(event) =>
-                        setEditDraft((prev) => ({ ...prev, content: event.target.value }))
-                      }
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
-                        onClick={() => handleUpdate(note.id)}
-                        disabled={isSaving || !editDraft.title.trim() || !editDraft.content.trim()}
-                      >
-                        {isSaving ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        className="rounded-full border border-transparent px-3 py-1 text-xs font-semibold text-slate-500 transition hover:text-slate-900"
-                        type="button"
-                        onClick={cancelEdit}
-                        disabled={isSaving}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">{note.title}</h3>
-                        {updatedLabel ? (
-                          <p className="text-xs text-slate-400">Last updated {updatedLabel}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-2">
+        <ScrollArea className="flex min-h-0 flex-1" type="always">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 pr-4">
+            {isLoading ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-sm text-slate-500">
+                Loading notes...
+              </div>
+            ) : null}
+            {!isLoading && filteredNotes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-sm text-slate-500">
+                {query.trim() ? 'No matching notes. Try another search.' : 'No notes yet. Add one above.'}
+              </div>
+            ) : null}
+            {filteredNotes.map((note) => {
+              const isEditing = editingId === note.id
+              const updatedLabel = renderDate(note.updated_at ?? note.created_at)
+              return (
+                <article
+                  key={note.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  {isEditing ? (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                        value={editDraft.title}
+                        onChange={(event) =>
+                          setEditDraft((prev) => ({ ...prev, title: event.target.value }))
+                        }
+                      />
+                      <textarea
+                        className="min-h-[80px] w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                        value={editDraft.content}
+                        onChange={(event) =>
+                          setEditDraft((prev) => ({ ...prev, content: event.target.value }))
+                        }
+                      />
+                      <div className="flex flex-wrap gap-2">
                         <button
-                          className="text-xs font-semibold text-slate-500 transition hover:text-slate-900"
+                          className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                           type="button"
-                          onClick={() => startEdit(note)}
+                          onClick={() => handleUpdate(note.id)}
+                          disabled={isSaving || !editDraft.title.trim() || !editDraft.content.trim()}
+                        >
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          className="rounded-full border border-transparent px-3 py-1 text-xs font-semibold text-slate-500 transition hover:text-slate-900"
+                          type="button"
+                          onClick={cancelEdit}
                           disabled={isSaving}
                         >
-                          Edit
+                          Cancel
                         </button>
-                        {deleteConfirmId === note.id ? (
-                          <div className="flex items-center gap-2">
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">{note.title}</h3>
+                          {updatedLabel ? (
+                            <p className="text-xs text-slate-400">Last updated {updatedLabel}</p>
+                          ) : null}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="text-xs font-semibold text-slate-500 transition hover:text-slate-900"
+                            type="button"
+                            onClick={() => startEdit(note)}
+                            disabled={isSaving}
+                          >
+                            Edit
+                          </button>
+                          {deleteConfirmId === note.id ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="text-xs font-semibold text-rose-600 transition hover:text-rose-700"
+                                type="button"
+                                onClick={() => handleDelete(note.id)}
+                                disabled={isSaving}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                className="text-xs font-semibold text-slate-500 transition hover:text-slate-900"
+                                type="button"
+                                onClick={() => setDeleteConfirmId('')}
+                                disabled={isSaving}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               className="text-xs font-semibold text-rose-600 transition hover:text-rose-700"
                               type="button"
-                              onClick={() => handleDelete(note.id)}
+                              onClick={() => setDeleteConfirmId(note.id)}
                               disabled={isSaving}
                             >
-                              Confirm
+                              Delete
                             </button>
-                            <button
-                              className="text-xs font-semibold text-slate-500 transition hover:text-slate-900"
-                              type="button"
-                              onClick={() => setDeleteConfirmId('')}
-                              disabled={isSaving}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="text-xs font-semibold text-rose-600 transition hover:text-rose-700"
-                            type="button"
-                            onClick={() => setDeleteConfirmId(note.id)}
-                            disabled={isSaving}
-                          >
-                            Delete
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
+                      <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm text-slate-600">
+                        {note.content}
+                      </p>
                     </div>
-                    <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm text-slate-600">
-                      {note.content}
-                    </p>
-                  </div>
-                )}
-              </article>
-            )
-          })}
-        </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        </ScrollArea>
       </div>
     </section>
   )

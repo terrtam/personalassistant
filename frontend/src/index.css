@@ -6,18 +6,26 @@
     color-scheme: light;
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
-    @apply min-h-screen bg-white text-slate-900 antialiased;
+    @apply bg-white text-slate-900 antialiased;
     font-family: 'Space Grotesk', 'Manrope', sans-serif;
     font-synthesis: none;
     line-height: 1.5;
     margin: 0;
     min-width: 320px;
+    overflow-x: hidden;
+    overflow-y: hidden;
     scroll-behavior: smooth;
     text-rendering: optimizeLegibility;
   }
 
   #root {
-    @apply min-h-screen;
+    @apply h-full;
   }
 }
