@@ -8,7 +8,7 @@ from langchain_groq import ChatGroq
 
 from app.core.settings import get_settings
 from app.services.llm.prompt_templates import INTENT_PROMPT_TEMPLATE
-from app.services.temporal_parser import extract_date, extract_time
+from app.services.temporal_parser import extract_date, extract_duration_minutes, extract_time
 
 ALLOWED_INTENTS = {
     "create_event",
@@ -30,6 +30,7 @@ DEFAULT_INTENT_PAYLOAD: dict[str, Any] = {
     "content": None,
     "date": None,
     "time": None,
+    "duration_minutes": None,
 }
 
 
@@ -46,7 +47,7 @@ def _get_intent_llm() -> ChatGroq:
 def _build_prompt(user_message: str) -> str:
     today = datetime.now().date().isoformat()
     schema_hint = (
-        '{ "intent": "...", "title": "...", "content": "...", "date": "...", "time": "..." }'
+        '{ "intent": "...", "title": "...", "content": "...", "date": "...", "time": "...", "duration_minutes": 60 }'
     )
     return (
         f"{INTENT_PROMPT_TEMPLATE}\n\n"
@@ -118,6 +119,21 @@ def _normalize_time(value: Any) -> str | None:
     return parsed.strftime("%H:%M")
 
 
+def _normalize_duration(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        minutes = int(value)
+        return minutes if minutes > 0 else None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if cleaned.isdigit():
+            minutes = int(cleaned)
+            return minutes if minutes > 0 else None
+        return extract_duration_minutes(cleaned)
+    return None
+
+
 def _normalize_payload(data: dict[str, Any]) -> dict[str, Any]:
     result = dict(DEFAULT_INTENT_PAYLOAD)
     if not isinstance(data, dict):
@@ -133,6 +149,7 @@ def _normalize_payload(data: dict[str, Any]) -> dict[str, Any]:
     result["content"] = _normalize_text(data.get("content"))
     result["date"] = _normalize_date(data.get("date"))
     result["time"] = _normalize_time(data.get("time"))
+    result["duration_minutes"] = _normalize_duration(data.get("duration_minutes"))
     return result
 
 

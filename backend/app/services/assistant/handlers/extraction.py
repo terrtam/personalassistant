@@ -11,6 +11,7 @@ from app.services.assistant.extraction import extract_notes_and_events
 from app.services.assistant.schemas import AskResponse
 from app.services.assistant.utils import _parse_confirmation
 from app.services.conversation_state import PendingIntent, clear_pending, set_pending
+from app.services.intent_detection import detect_intent
 from app.services.temporal_parser import (
     extract_date,
     extract_duration_minutes,
@@ -134,6 +135,25 @@ def _parse_event_edits(message: str) -> dict[str, str | None]:
         edits["description"] = desc_match.group(1).strip()
 
     return edits
+
+
+def _llm_event_details(message: str) -> tuple[str | None, str | None, int | None]:
+    try:
+        intent_data = detect_intent(message)
+    except Exception:
+        return None, None, None
+    if not isinstance(intent_data, dict):
+        return None, None, None
+    date_str = intent_data.get("date")
+    time_str = intent_data.get("time")
+    duration = intent_data.get("duration_minutes")
+    if not isinstance(date_str, str):
+        date_str = None
+    if not isinstance(time_str, str):
+        time_str = None
+    if not isinstance(duration, int) or duration <= 0:
+        duration = None
+    return date_str, time_str, duration
 
 
 def _preflight_bulk_event_conflicts(pending: PendingIntent) -> AskResponse | None:
@@ -331,6 +351,7 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                         event["date"] = parsed_edit_date
 
                 parsed_date = event.get("date")
+                llm_date, llm_time, llm_duration = _llm_event_details(message)
                 range_start, range_end, range_ambiguous = extract_time_range(message)
                 parsed_time, time_ambiguous = extract_time(message)
                 if range_ambiguous or time_ambiguous:
@@ -339,7 +360,7 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                         answer="**Clarification Needed**\n- Please specify a time with AM/PM, like `4pm`.",
                         sources=[],
                     )
-                duration = extract_duration_minutes(message)
+                duration = llm_duration or extract_duration_minutes(message)
                 if range_start and range_end:
                     parsed_time = range_start
                     if duration is None:
@@ -352,8 +373,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                         duration = delta if delta > 0 else None
 
                 is_conflict_resolution = pending.conflicted_event_index == idx
-                merged_date = parsed_date or (event.get("date") if is_conflict_resolution else None)
-                merged_time = parsed_time
+                merged_date = llm_date or parsed_date or (
+                    event.get("date") if is_conflict_resolution else None
+                )
+                merged_time = llm_time or parsed_time
                 merged_duration = duration or (
                     event.get("duration_minutes") if is_conflict_resolution else None
                 )

@@ -236,11 +236,47 @@ def extract_duration_minutes(text: str) -> int | None:
     if not lowered.strip():
         return None
 
+    number_words = {
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "eleven": 11,
+        "twelve": 12,
+    }
+
     if "half hour" in lowered or "half an hour" in lowered:
         return 30
+    if "quarter hour" in lowered or "quarter of an hour" in lowered:
+        return 15
+
+    half_match = re.search(
+        r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+and\s+a\s+half\s+hours?\b",
+        lowered,
+    )
+    if half_match:
+        value = half_match.group(1)
+        hours = int(value) if value.isdigit() else number_words.get(value, 0)
+        if hours > 0:
+            return hours * 60 + 30
 
     hours_match = re.search(r"\b(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)\b", lowered)
     minutes_match = re.search(r"\b(\d+)\s*(m|min|mins|minute|minutes)\b", lowered)
+    word_hours_match = re.search(
+        r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(hour|hours)\b",
+        lowered,
+    )
+    word_minutes_match = re.search(
+        r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(minute|minutes)\b",
+        lowered,
+    )
+    article_hour_match = re.search(r"\b(a|an)\s+hour\b", lowered)
 
     total_minutes = 0
     found = False
@@ -249,11 +285,24 @@ def extract_duration_minutes(text: str) -> int | None:
         hours = float(hours_match.group(1))
         total_minutes += int(round(hours * 60))
         found = True
+    elif word_hours_match:
+        hours = number_words.get(word_hours_match.group(1), 0)
+        if hours:
+            total_minutes += hours * 60
+            found = True
+    elif article_hour_match:
+        total_minutes += 60
+        found = True
 
     if minutes_match:
         minutes = int(minutes_match.group(1))
         total_minutes += minutes
         found = True
+    elif word_minutes_match:
+        minutes = number_words.get(word_minutes_match.group(1), 0)
+        if minutes:
+            total_minutes += minutes
+            found = True
 
     if found:
         return total_minutes if total_minutes > 0 else None

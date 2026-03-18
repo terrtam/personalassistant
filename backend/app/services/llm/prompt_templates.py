@@ -11,6 +11,7 @@ Fields:
 - content: note content for create_note or update_note
 - date: ISO date for calendar intents
 - time: HH:MM for calendar intents
+- duration_minutes: integer minutes for create_event when possible
 
 Possible intents:
 - create_event
@@ -27,6 +28,7 @@ Possible intents:
 
 Use rag_query for questions about uploaded documents, PDFs, or stored knowledge.
 
+For create_event, convert natural-language durations like "one hour", "an hour", "half an hour", "90 minutes" into duration_minutes.
 Return ONLY valid JSON."""
 
 CHAT_PROMPT_TEMPLATE = """You are a helpful assistant for a single-user calendar and notes app.

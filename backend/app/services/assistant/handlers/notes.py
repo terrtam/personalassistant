@@ -10,6 +10,7 @@ from app.services.assistant.utils import (
     _extract_selection_index,
     _parse_confirmation,
 )
+from app.services.intent_detection import detect_intent
 
 
 def _extract_notes_query(message: str) -> str | None:
@@ -320,6 +321,22 @@ def _parse_note_edit(message: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _llm_note_fields(message: str) -> tuple[str | None, str | None]:
+    try:
+        intent_data = detect_intent(message)
+    except Exception:
+        return None, None
+    if not isinstance(intent_data, dict):
+        return None, None
+    title = intent_data.get("title")
+    content = intent_data.get("content")
+    if not isinstance(title, str):
+        title = None
+    if not isinstance(content, str):
+        content = None
+    return title, content
+
+
 def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
     if pending.intent not in {"create_note", "update_note", "delete_note"}:
         return None
@@ -616,7 +633,8 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
             )
 
     if pending.intent == "create_note":
-        content = pending.content or _extract_note_content(message, "create_note")
+        llm_title, llm_content = _llm_note_fields(message)
+        content = pending.content or llm_content or _extract_note_content(message, "create_note")
         if not content:
             set_pending(
                 PendingIntent(
@@ -633,7 +651,7 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 answer="**Missing Details**\n- **Content**\n\nWhat should the note say?",
                 sources=[],
             )
-        title = pending.title or _derive_note_title(content)
+        title = pending.title or llm_title or _derive_note_title(content)
         set_pending(
             PendingIntent(
                 intent=pending.intent,
@@ -651,8 +669,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
         )
 
     if pending.intent in {"update_note", "delete_note"}:
+        llm_title, _ = _llm_note_fields(message)
         query = (
             pending.title
+            or llm_title
             or _extract_note_title_candidate(message, pending.intent)
             or _extract_notes_query(message)
             or message.strip()
@@ -760,7 +780,7 @@ def handle_intent(message: str, intent: str, intent_data: dict[str, object]) -> 
 
     if intent == "query_notes" or (intent == "chat" and _is_notes_query(message)):
         clear_pending()
-        query = _extract_notes_query(message) or title
+        query = title or _extract_notes_query(message)
         notes = notes_service.search_notes(query) if query else notes_service.list_notes()
         return AskResponse(
             model="notes",
@@ -805,13 +825,13 @@ def handle_intent(message: str, intent: str, intent_data: dict[str, object]) -> 
     if intent == "update_note" or (intent == "chat" and _is_notes_update(message)):
         intent = "update_note"
         wants_rename = _wants_note_rename(message)
-        extracted_query = _extract_note_title_candidate(message, intent) or _extract_notes_query(
+        extracted_query = title or _extract_note_title_candidate(message, intent) or _extract_notes_query(
             message
         )
         if wants_rename and extracted_query:
             note_query = extracted_query
         else:
-            note_query = title or extracted_query
+            note_query = extracted_query
         new_title = _extract_note_new_title(message)
         note_content = content or _extract_note_content(message, intent)
         if wants_rename and not new_title and note_content:

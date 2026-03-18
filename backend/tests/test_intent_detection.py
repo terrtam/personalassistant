@@ -33,6 +33,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": "2026-03-12",
                     "time": "15:00",
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -43,6 +44,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": "2026-03-13",
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -53,6 +55,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -63,6 +66,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": "2026-03-16",
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -73,6 +77,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -83,6 +88,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -93,6 +99,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": "buy groceries",
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -103,6 +110,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -113,6 +121,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -123,6 +132,7 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
                 },
             ),
             (
@@ -133,6 +143,18 @@ class IntentDetectionTests(unittest.TestCase):
                     "content": None,
                     "date": None,
                     "time": None,
+                    "duration_minutes": None,
+                },
+            ),
+            (
+                "Schedule a meeting tomorrow at 5pm for one hour",
+                {
+                    "intent": "create_event",
+                    "title": "meeting",
+                    "content": None,
+                    "date": "2026-03-12",
+                    "time": "17:00",
+                    "duration_minutes": 60,
                 },
             ),
         ]
@@ -147,3 +169,4 @@ class IntentDetectionTests(unittest.TestCase):
                 self.assertEqual(result["content"], expected["content"])
                 self.assertEqual(result["date"], expected["date"])
                 self.assertEqual(result["time"], expected["time"])
+                self.assertEqual(result["duration_minutes"], expected["duration_minutes"])

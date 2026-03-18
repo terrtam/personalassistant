@@ -528,11 +528,15 @@ def handle_intent(
     title = intent_data.get("title") if isinstance(intent_data, dict) else None
     date_str = intent_data.get("date") if isinstance(intent_data, dict) else None
     time_str = intent_data.get("time") if isinstance(intent_data, dict) else None
+    duration_minutes = (
+        intent_data.get("duration_minutes") if isinstance(intent_data, dict) else None
+    )
+    if not isinstance(duration_minutes, int) or duration_minutes <= 0:
+        duration_minutes = None
 
-    duration_minutes = extract_duration_minutes(message) if intent == "create_event" else None
     explicit_times = extract_explicit_times(message)
     range_start, range_end, range_ambiguous = extract_time_range(message)
-    if range_ambiguous and intent in {"create_event", "update_event"}:
+    if time_str is None and range_ambiguous and intent in {"create_event", "update_event"}:
         return AskResponse(
             model="calendar",
             answer=_build_ambiguous_time_message(None),
@@ -559,8 +563,14 @@ def handle_intent(
             if candidate:
                 title = candidate
 
-    if intent == "update_event" and len(explicit_times) >= 2:
+    if intent in {"create_event", "update_event", "delete_event", "query_calendar"}:
+        if date_str is None:
+            date_str = extract_date(message)
+
+    if intent == "update_event" and time_str is None and len(explicit_times) >= 2:
         time_str = explicit_times[-1]
+    if time_str is None and explicit_times:
+        time_str = explicit_times[0]
     if (
         intent == "create_event"
         and time_str
@@ -568,17 +578,22 @@ def handle_intent(
         and len(explicit_times) >= 2
         and date_str
     ):
-        inferred_duration = _duration_from_end_time(date_str, time_str, explicit_times[-1])
+        inferred_duration = _duration_from_end_time(
+            date_str, time_str, explicit_times[-1]
+        )
         if inferred_duration:
             duration_minutes = inferred_duration
-        else:
-            time_str = None
     if intent in {"create_event", "update_event"} and range_start and range_end:
-        time_str = range_start
-        if intent == "create_event" and duration_minutes is None:
+        if time_str is None:
+            time_str = range_start
+        if (
+            intent == "create_event"
+            and duration_minutes is None
+            and (time_str == range_start)
+        ):
             duration_minutes = _duration_between_times(range_start, range_end)
 
-    if intent in {"create_event", "update_event"} and not explicit_times:
+    if intent in {"create_event", "update_event"} and time_str is None and not explicit_times:
         parsed_time, time_ambiguous = extract_time(message)
         if time_ambiguous:
             set_pending(
@@ -595,6 +610,10 @@ def handle_intent(
                 answer=_build_ambiguous_time_message(parsed_time),
                 sources=[],
             )
+        time_str = parsed_time
+
+    if intent == "create_event" and duration_minutes is None:
+        duration_minutes = extract_duration_minutes(message)
 
     if intent in {"create_event", "update_event", "delete_event"}:
         missing_title = title is None
