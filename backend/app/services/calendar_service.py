@@ -17,6 +17,7 @@ from app.services.calendar.google_calendar import (
 )
 
 DEFAULT_EVENT_DURATION_MINUTES = 60
+MAX_EVENT_TITLE_LEN = 120
 DEFAULT_QUERY_WINDOW_DAYS = 30
 DEFAULT_SEARCH_WINDOW_DAYS = 30
 
@@ -136,9 +137,66 @@ def _build_rrule(recurrence: dict[str, Any], start_date: date) -> list[str] | No
 def _format_datetime(dt: datetime) -> str:
     return dt.strftime("%a %b %d, %Y at %H:%M %Z").strip()
 
+def _format_date_label(date_str: str | None) -> str | None:
+    if not date_str:
+        return None
+    try:
+        parsed = date.fromisoformat(date_str)
+        return parsed.strftime("%a %b %d, %Y")
+    except ValueError:
+        return date_str
+
+
+def _format_time_label(time_str: str | None) -> str | None:
+    if not time_str:
+        return None
+    try:
+        parsed = time.fromisoformat(time_str)
+        label = parsed.strftime("%I:%M %p")
+        return label.lstrip("0")
+    except ValueError:
+        return time_str
+
+
+def generate_event_title(
+    date_str: str | None, time_str: str | None, fallback_text: str | None = None
+) -> str:
+    cleaned = " ".join((fallback_text or "").strip().split())
+    if cleaned:
+        return cleaned[:MAX_EVENT_TITLE_LEN].rstrip()
+    date_label = _format_date_label(date_str)
+    time_label = _format_time_label(time_str)
+    if date_label and time_label:
+        return f"Event on {date_label} at {time_label}"
+    if date_label:
+        return f"Event on {date_label}"
+    if time_label:
+        return f"Event at {time_label}"
+    return "Event"
+
+
+def _event_start_labels(event: dict[str, Any]) -> tuple[str | None, str | None]:
+    start_info = event.get("start", {}) if isinstance(event.get("start"), dict) else {}
+    raw = start_info.get("dateTime") or start_info.get("date")
+    if not raw:
+        return None, None
+    if "T" in str(raw):
+        dt = _parse_event_datetime(str(raw))
+        if not dt:
+            return None, None
+        return dt.date().isoformat(), dt.time().strftime("%H:%M")
+    try:
+        parsed_date = datetime.fromisoformat(str(raw)).date().isoformat()
+    except ValueError:
+        parsed_date = None
+    return parsed_date, None
+
 
 def _format_event_line(event: dict[str, Any]) -> str:
-    summary = event.get("summary") or "Untitled event"
+    summary = event.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        date_str, time_str = _event_start_labels(event)
+        summary = generate_event_title(date_str, time_str)
     start_info = event.get("start", {}) if isinstance(event.get("start"), dict) else {}
     if "dateTime" in start_info:
         dt = _parse_event_datetime(start_info.get("dateTime"))
@@ -151,7 +209,10 @@ def _format_event_line(event: dict[str, Any]) -> str:
 
 
 def _format_event_choice(index: int, event: dict[str, Any]) -> str:
-    summary = event.get("summary") or "Untitled event"
+    summary = event.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        date_str, time_str = _event_start_labels(event)
+        summary = generate_event_title(date_str, time_str)
     start_info = event.get("start", {}) if isinstance(event.get("start"), dict) else {}
     if "dateTime" in start_info:
         dt = _parse_event_datetime(start_info.get("dateTime"))
@@ -262,7 +323,10 @@ def build_disambiguation_message(
 def build_delete_confirmation_message(
     candidate: dict[str, Any], scope: str | None = None
 ) -> str:
-    summary = candidate.get("summary") or "Untitled event"
+    summary = candidate.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        date_str, time_str = _event_start_labels(candidate)
+        summary = generate_event_title(date_str, time_str)
     start_info = candidate.get("start", {}) if isinstance(candidate.get("start"), dict) else {}
     if "dateTime" in start_info:
         dt = _parse_event_datetime(start_info.get("dateTime"))
@@ -413,7 +477,11 @@ def create_event(
     recurrence: dict[str, Any] | None = None,
 ) -> str:
     settings = get_settings()
-    summary = title.strip() if isinstance(title, str) and title.strip() else "Untitled event"
+    summary = (
+        title.strip()
+        if isinstance(title, str) and title.strip()
+        else generate_event_title(date_str, time_str)
+    )
     try:
         start = _combine_date_time(date_str, time_str)
         if not duration_minutes or duration_minutes <= 0:
@@ -612,7 +680,10 @@ def update_event_from_candidate(
         event_id = recurring_event_id
     if not event_id:
         raise CalendarActionError("Found the event but it has no ID to update.")
-    summary = candidate.get("summary") or "Untitled event"
+    summary = candidate.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        date_label, time_label = _event_start_labels(candidate)
+        summary = generate_event_title(date_label, time_label)
     new_start = _combine_date_time(date_str, time_str)
     duration = _event_duration(candidate)
     new_end = new_start + duration
@@ -653,7 +724,10 @@ def delete_event_from_candidate(
         event_id = recurring_event_id
     if not event_id:
         raise CalendarActionError("Found the event but it has no ID to cancel.")
-    summary = candidate.get("summary") or "Untitled event"
+    summary = candidate.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        date_str, time_str = _event_start_labels(candidate)
+        summary = generate_event_title(date_str, time_str)
     try:
         google_delete_event(
             calendar_id=get_settings().google_calendar_id,

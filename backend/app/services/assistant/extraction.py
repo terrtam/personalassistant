@@ -4,6 +4,7 @@ import json
 from datetime import date, datetime, time
 from typing import Any
 
+from app.services import calendar_service
 from app.services.llm.groq_client import get_groq_chat_model
 from app.services.llm.prompt_templates import build_extraction_prompt
 from app.services.temporal_parser import extract_date, extract_duration_minutes, extract_time
@@ -122,9 +123,13 @@ def _normalize_events(items: Any) -> list[dict[str, Any]]:
         time_str = _normalize_time(item.get("time"))
         duration = _normalize_duration(item.get("duration_minutes"))
         description = _normalize_text(item.get("description"), MAX_EVENT_DESCRIPTION)
-        if not title or not date_str:
+        if not date_str:
             continue
         snippet = _normalize_text(item.get("source_snippet"))
+        if not title:
+            title = calendar_service.generate_event_title(
+                date_str, time_str, fallback_text=description or snippet
+            )
         results.append(
             {
                 "title": title,

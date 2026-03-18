@@ -50,6 +50,22 @@ def _format_weekday_label(code: str) -> str:
     return mapping.get(code.upper(), code)
 
 
+def _infer_title_from_message(message: str | None) -> str | None:
+    if not message:
+        return None
+    import re
+
+    cleaned = strip_temporal_tokens(message)
+    cleaned = re.sub(
+        r"\b(schedule|add|create|book|set up|setup|set|plan|move|reschedule|update|shift|push|cancel|delete|remove)\b",
+        " ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,.")
+    return cleaned or None
+
+
 def _build_missing_details_message(
     intent: str,
     title: str | None,
@@ -317,6 +333,28 @@ def _apply_recurrence_ends_from_message(
     return recurrence
 
 
+def _wants_clear_recurrence(message: str) -> bool:
+    if not message:
+        return False
+    lowered = message.lower()
+    return any(
+        phrase in lowered
+        for phrase in [
+            "stop repeating",
+            "stop recurring",
+            "no repeat",
+            "no repeats",
+            "do not repeat",
+            "dont repeat",
+            "don't repeat",
+            "remove recurrence",
+            "remove repeating",
+            "remove repeats",
+            "cancel recurrence",
+        ]
+    )
+
+
 def _format_recurrence_summary(recurrence: dict | None) -> str | None:
     if not recurrence:
         return None
@@ -401,7 +439,9 @@ def _build_create_update_confirmation_message(
         f"- **Starts:** _{start_label or 'time unknown'}_\n"
         f"{end_line}"
         f"{recurrence_line}\n"
-        "Reply `yes` to confirm or `no` to cancel."
+        "Reply `yes` to confirm or `no` to cancel. "
+        "You can also say `edit title ...`, `edit date ...`, `edit time ...`, "
+        "`edit duration ...`, or `repeat weekly`."
     )
 
 
@@ -542,7 +582,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 model="calendar",
                 answer=_build_create_update_confirmation_message(
                     pending.intent,
-                    pending.title or "Untitled event",
+                    pending.title
+                    or calendar_service.generate_event_title(
+                        pending.date, pending.time
+                    ),
                     pending.date,
                     pending.time,
                     pending.duration_minutes,
@@ -596,13 +639,20 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
             merged_title = title_edit or pending.title
             merged_duration = parsed_duration or pending.duration_minutes
             merged_apply_to = _parse_apply_to(message) or pending.apply_to
+            if pending.intent == "create_event" and merged_title is None:
+                inferred_title = _infer_title_from_message(message)
+                merged_title = inferred_title or calendar_service.generate_event_title(
+                    merged_date, merged_time
+                )
 
             merged_recurrence = pending.recurrence
             if _is_recurring_request(message):
                 merged_recurrence = _build_recurrence_from_message(
                     message, merged_date
                 )
-            if merged_recurrence:
+            if _wants_clear_recurrence(message):
+                merged_recurrence = None
+            elif merged_recurrence:
                 merged_recurrence = _apply_recurrence_ends_from_message(
                     message, merged_recurrence
                 )
@@ -650,7 +700,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                 model="calendar",
                 answer=_build_create_update_confirmation_message(
                     pending.intent,
-                    merged_title or "Untitled event",
+                    merged_title
+                    or calendar_service.generate_event_title(
+                        merged_date, merged_time
+                    ),
                     merged_date,
                     merged_time,
                     merged_duration,
@@ -818,7 +871,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                     model="calendar",
                     answer=_build_create_update_confirmation_message(
                         pending.intent,
-                        pending.title or "Untitled event",
+                        pending.title
+                        or calendar_service.generate_event_title(
+                            merged_date, merged_time
+                        ),
                         merged_date,
                         merged_time,
                         pending.duration_minutes,
@@ -931,7 +987,10 @@ def handle_pending(message: str, pending: PendingIntent) -> AskResponse | None:
                     model="calendar",
                     answer=_build_create_update_confirmation_message(
                         pending.intent,
-                        pending.title or "Untitled event",
+                        pending.title
+                        or calendar_service.generate_event_title(
+                            pending.date, pending.time
+                        ),
                         pending.date,
                         pending.time,
                         pending.duration_minutes,
@@ -1251,6 +1310,12 @@ def handle_intent(
     if intent == "create_event" and duration_minutes is None:
         duration_minutes = extract_duration_minutes(message)
 
+    if intent == "create_event" and (
+        title is None or (isinstance(title, str) and not title.strip())
+    ):
+        inferred_title = _infer_title_from_message(message)
+        title = inferred_title or calendar_service.generate_event_title(date_str, time_str)
+
     if apply_to is None:
         apply_to = _parse_apply_to(message)
 
@@ -1390,6 +1455,8 @@ def handle_intent(
             )
 
     if intent == "create_event":
+        if not title:
+            title = calendar_service.generate_event_title(date_str, time_str)
         set_pending(
             PendingIntent(
                 intent=intent,
@@ -1405,7 +1472,7 @@ def handle_intent(
             model="calendar",
             answer=_build_create_update_confirmation_message(
                 intent,
-                title or "Untitled event",
+                title,
                 date_str,
                 time_str,
                 duration_minutes,
@@ -1436,7 +1503,7 @@ def handle_intent(
             model="calendar",
             answer=_build_create_update_confirmation_message(
                 intent,
-                title or "Untitled event",
+                title or calendar_service.generate_event_title(date_str, time_str),
                 date_str,
                 time_str,
                 duration_minutes,

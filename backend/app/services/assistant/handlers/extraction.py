@@ -71,10 +71,14 @@ def _next_missing_event_index(events: list[dict[str, Any]]) -> int | None:
 
 
 def _format_event_detail_prompt(event: dict[str, Any]) -> str:
-    title = event.get("title") or "Untitled"
     date_str = event.get("date") or "unknown date"
     snippet = event.get("source_snippet")
     description = event.get("description")
+    title = event.get("title") or calendar_service.generate_event_title(
+        event.get("date"),
+        event.get("time"),
+        fallback_text=description or snippet,
+    )
     lines = [
         "**Event Details Needed**",
         f"- **Title:** {title}",
@@ -94,12 +98,17 @@ def _format_event_detail_prompt(event: dict[str, Any]) -> str:
 def _format_event_confirmation(events: list[dict[str, Any]]) -> str:
     lines = ["**Confirm Events**", "Reply `yes` to create all or `no` to cancel."]
     for idx, event in enumerate(events, start=1):
-        title = event.get("title") or "Untitled"
+        description = event.get("description")
+        snippet = event.get("source_snippet")
+        title = event.get("title") or calendar_service.generate_event_title(
+            event.get("date"),
+            event.get("time"),
+            fallback_text=description or snippet,
+        )
         date_str = event.get("date") or "unknown date"
         time_str = event.get("time") or "time needed"
         duration = event.get("duration_minutes")
         duration_str = f"{duration} min" if duration else "duration needed"
-        description = event.get("description")
         line = f"{idx}) **{title}** — {date_str} at {time_str} ({duration_str})"
         if description:
             line += f" — { _preview(str(description), 80) }"
