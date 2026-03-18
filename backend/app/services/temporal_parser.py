@@ -7,6 +7,7 @@ from typing import Tuple
 _TIME_RE = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.IGNORECASE)
 _DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 _MD_SEP_RE = re.compile(r"\b(\d{1,2})[/-](\d{1,2})\b")
+_ORDINAL_DAY_RE = re.compile(r"\b(\d{1,2})(st|nd|rd|th)\b")
 
 _MONTHS = {
     "january": 1,
@@ -64,6 +65,26 @@ _WEEKDAYS = {
     "sat": 5,
     "sunday": 6,
     "sun": 6,
+}
+
+_WEEKDAY_CODES = {
+    "monday": "MO",
+    "mon": "MO",
+    "tuesday": "TU",
+    "tue": "TU",
+    "tues": "TU",
+    "wednesday": "WE",
+    "wed": "WE",
+    "thursday": "TH",
+    "thu": "TH",
+    "thur": "TH",
+    "thurs": "TH",
+    "friday": "FR",
+    "fri": "FR",
+    "saturday": "SA",
+    "sat": "SA",
+    "sunday": "SU",
+    "sun": "SU",
 }
 
 
@@ -154,6 +175,27 @@ def extract_date(text: str, today: date | None = None) -> str | None:
                     candidate = date(today_value.year + 1, month, day)
                 except ValueError:
                     return None
+            return candidate.isoformat()
+
+    ordinal_match = _ORDINAL_DAY_RE.search(lowered)
+    if ordinal_match:
+        day = int(ordinal_match.group(1))
+        month = today_value.month
+        year = today_value.year
+        try:
+            candidate = date(year, month, day)
+        except ValueError:
+            candidate = None
+        if candidate and candidate < today_value:
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+            try:
+                candidate = date(year, month, day)
+            except ValueError:
+                candidate = None
+        if candidate:
             return candidate.isoformat()
 
     if "today" in lowered:
@@ -387,3 +429,14 @@ def extract_explicit_times(text: str) -> list[str]:
         results.append(f"{hour:02d}:{minute:02d}")
 
     return results
+
+
+def extract_weekdays(text: str) -> list[str]:
+    if not text:
+        return []
+    lowered = text.lower()
+    codes: list[str] = []
+    for name, code in _WEEKDAY_CODES.items():
+        if re.search(rf"\b{name}\b", lowered) and code not in codes:
+            codes.append(code)
+    return codes

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     google_refresh_token: str | None = None
     google_calendar_id: str = "primary"
     google_token_uri: str = "https://oauth2.googleapis.com/token"
+    time_zone: str | None = None
 
     @property
     def cors_allow_origins(self) -> list[str]:

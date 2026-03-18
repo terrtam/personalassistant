@@ -1,4 +1,5 @@
 import sys
+from datetime import date
 import unittest
 from pathlib import Path
 
@@ -7,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.services.temporal_parser import extract_duration_minutes
+from app.services.temporal_parser import extract_date, extract_duration_minutes
 
 
 class TemporalParserDurationTests(unittest.TestCase):
@@ -27,6 +28,9 @@ class TemporalParserDurationTests(unittest.TestCase):
     def test_word_minutes(self):
         self.assertEqual(extract_duration_minutes("five minutes"), 5)
         self.assertEqual(extract_duration_minutes("twelve minutes"), 12)
+
+    def test_ordinal_day(self):
+        self.assertEqual(extract_date("18th", today=date(2026, 3, 17)), "2026-03-18")
 
 
 if __name__ == "__main__":

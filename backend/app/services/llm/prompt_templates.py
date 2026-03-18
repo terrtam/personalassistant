@@ -12,6 +12,8 @@ Fields:
 - date: ISO date for calendar intents
 - time: HH:MM for calendar intents
 - duration_minutes: integer minutes for create_event when possible
+- recurrence: object for repeating events
+- apply_to: "series" or "single" for recurring edits/deletes when specified
 
 Possible intents:
 - create_event
@@ -29,6 +31,11 @@ Possible intents:
 Use rag_query for questions about uploaded documents, PDFs, or stored knowledge.
 
 For create_event, convert natural-language durations like "one hour", "an hour", "half an hour", "90 minutes" into duration_minutes.
+For recurrence, use:
+- frequency: daily | weekly | monthly | yearly
+- interval: integer (default 1)
+- byweekday: list of weekday names when relevant
+- ends: { type: "never" | "on" | "after", date: "YYYY-MM-DD" | null, count: integer | null }
 Return ONLY valid JSON."""
 
 CHAT_PROMPT_TEMPLATE = """You are a helpful assistant for a single-user calendar and notes app.

@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.services.assistant.handlers import calendar as calendar_handler
-from app.services.conversation_state import clear_pending
+from app.services.conversation_state import clear_pending, get_pending
 
 
 class CalendarHandlerLLMFirstTests(unittest.TestCase):
@@ -29,8 +29,15 @@ class CalendarHandlerLLMFirstTests(unittest.TestCase):
             )
 
         self.assertIsNotNone(response)
-        self.assertEqual(response.answer, "ok")
-        mocked.assert_called_once_with("meeting", "2026-03-17", "17:00", 60)
+        self.assertIn("Confirm Create", response.answer)
+        pending = get_pending()
+        self.assertIsNotNone(pending)
+        follow_up = calendar_handler.handle_pending("yes", pending)
+        self.assertIsNotNone(follow_up)
+        self.assertEqual(follow_up.answer, "ok")
+        mocked.assert_called_once_with(
+            "meeting", "2026-03-17", "17:00", 60, recurrence=None
+        )
 
     def test_duration_falls_back_to_parser(self):
         intent_data = {
@@ -45,8 +52,50 @@ class CalendarHandlerLLMFirstTests(unittest.TestCase):
             )
 
         self.assertIsNotNone(response)
-        self.assertEqual(response.answer, "ok")
-        mocked.assert_called_once_with("meeting", "2026-03-17", "17:00", 45)
+        self.assertIn("Confirm Create", response.answer)
+        pending = get_pending()
+        self.assertIsNotNone(pending)
+        follow_up = calendar_handler.handle_pending("yes", pending)
+        self.assertIsNotNone(follow_up)
+        self.assertEqual(follow_up.answer, "ok")
+        mocked.assert_called_once_with(
+            "meeting", "2026-03-17", "17:00", 45, recurrence=None
+        )
+
+    def test_recurrence_passed_for_create(self):
+        intent_data = {
+            "title": "recurring meeting",
+            "date": "2026-03-18",
+            "time": "15:00",
+            "duration_minutes": 30,
+            "recurrence": {
+                "frequency": "weekly",
+                "interval": 1,
+                "byweekday": ["WE"],
+                "ends": {"type": "never", "date": None, "count": None},
+            },
+        }
+        with patch("app.services.calendar_service.create_event", return_value="ok") as mocked:
+            response = calendar_handler.handle_intent(
+                "recurring meeting every wednesday at 3pm",
+                "create_event",
+                intent_data,
+            )
+
+        self.assertIsNotNone(response)
+        self.assertIn("Confirm Create", response.answer)
+        pending = get_pending()
+        self.assertIsNotNone(pending)
+        follow_up = calendar_handler.handle_pending("yes", pending)
+        self.assertIsNotNone(follow_up)
+        self.assertEqual(follow_up.answer, "ok")
+        mocked.assert_called_once_with(
+            "recurring meeting",
+            "2026-03-18",
+            "15:00",
+            30,
+            recurrence=intent_data["recurrence"],
+        )
 
     def test_ambiguous_time_prompts_clarification(self):
         intent_data = {

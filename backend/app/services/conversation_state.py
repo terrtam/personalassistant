@@ -15,9 +15,12 @@ class PendingIntent:
     new_title: str | None = None
     note_field: str | None = None
     duration_minutes: int | None = None
+    recurrence: dict[str, Any] | None = None
+    apply_to: str | None = None
     selection: list[dict[str, Any]] | None = None
     target: dict[str, Any] | None = None
     awaiting_confirmation: bool = False
+    awaiting_series_choice: bool = False
     bulk_notes: list[dict[str, Any]] | None = None
     note_index: int | None = None
     awaiting_note_confirmation: bool = False

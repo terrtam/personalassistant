@@ -170,3 +170,29 @@ class IntentDetectionTests(unittest.TestCase):
                 self.assertEqual(result["date"], expected["date"])
                 self.assertEqual(result["time"], expected["time"])
                 self.assertEqual(result["duration_minutes"], expected["duration_minutes"])
+
+    def test_recurrence_normalization(self):
+        payload = {
+            "intent": "create_event",
+            "title": "standup",
+            "content": None,
+            "date": "2026-03-18",
+            "time": "09:00",
+            "duration_minutes": 15,
+            "recurrence": {
+                "frequency": "weekly",
+                "interval": "2",
+                "byweekday": ["wednesday", "fri"],
+                "ends": {"type": "after", "count": "3"},
+            },
+            "apply_to": "series",
+        }
+        fake_llm = FakeLLM(json.dumps(payload))
+        with patch("app.services.intent_detection._get_intent_llm", return_value=fake_llm):
+            result = detect_intent("standup every other week")
+        self.assertEqual(result["recurrence"]["frequency"], "weekly")
+        self.assertEqual(result["recurrence"]["interval"], 2)
+        self.assertEqual(result["recurrence"]["byweekday"], ["WE", "FR"])
+        self.assertEqual(result["recurrence"]["ends"]["type"], "after")
+        self.assertEqual(result["recurrence"]["ends"]["count"], 3)
+        self.assertEqual(result["apply_to"], "series")

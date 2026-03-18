@@ -9,6 +9,7 @@ and deleting calendar events.
 from __future__ import annotations
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -54,6 +55,30 @@ def get_calendar_service() -> Resource:
     return build("calendar", "v3", credentials=credentials, cache_discovery=False)
 
 
+def _local_time_zone_name() -> str | None:
+    settings = get_settings()
+    if settings.time_zone:
+        candidate = settings.time_zone.strip()
+        if candidate:
+            try:
+                ZoneInfo(candidate)
+                return candidate
+            except Exception:
+                return "UTC"
+    tzinfo = datetime.now().astimezone().tzinfo
+    if tzinfo is None:
+        return "UTC"
+    key = getattr(tzinfo, "key", None)
+    if isinstance(key, str) and key:
+        if "/" in key:
+            return key
+    name = tzinfo.tzname(None)
+    if isinstance(name, str) and name:
+        if "/" in name:
+            return name
+    return "UTC"
+
+
 def list_events(
     *,
     calendar_id: str,
@@ -85,17 +110,27 @@ def create_event(
     end: datetime,
     description: str | None = None,
     location: str | None = None,
+    recurrence: list[str] | None = None,
 ) -> dict:
     service = get_calendar_service()
+    time_zone = _local_time_zone_name()
     body = {
         "summary": summary,
-        "start": {"dateTime": start.isoformat()},
-        "end": {"dateTime": end.isoformat()},
+        "start": {
+            "dateTime": start.isoformat(),
+            **({"timeZone": time_zone} if time_zone else {}),
+        },
+        "end": {
+            "dateTime": end.isoformat(),
+            **({"timeZone": time_zone} if time_zone else {}),
+        },
     }
     if description:
         body["description"] = description
     if location:
         body["location"] = location
+    if recurrence:
+        body["recurrence"] = recurrence
 
     return (
         service.events()
@@ -113,25 +148,40 @@ def update_event(
     end: datetime | None = None,
     description: str | None = None,
     location: str | None = None,
+    recurrence: list[str] | None = None,
 ) -> dict:
     service = get_calendar_service()
+    time_zone = _local_time_zone_name()
     body: dict[str, object] = {}
     if summary is not None:
         body["summary"] = summary
     if start is not None:
-        body["start"] = {"dateTime": start.isoformat()}
+        body["start"] = {
+            "dateTime": start.isoformat(),
+            **({"timeZone": time_zone} if time_zone else {}),
+        }
     if end is not None:
-        body["end"] = {"dateTime": end.isoformat()}
+        body["end"] = {
+            "dateTime": end.isoformat(),
+            **({"timeZone": time_zone} if time_zone else {}),
+        }
     if description is not None:
         body["description"] = description
     if location is not None:
         body["location"] = location
+    if recurrence is not None:
+        body["recurrence"] = recurrence
 
     return (
         service.events()
         .patch(calendarId=calendar_id, eventId=event_id, body=body)
         .execute()
     )
+
+
+def get_event(*, calendar_id: str, event_id: str) -> dict:
+    service = get_calendar_service()
+    return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
 
 def delete_event(*, calendar_id: str, event_id: str) -> None:

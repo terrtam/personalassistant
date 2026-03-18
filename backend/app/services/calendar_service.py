@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+import json
+import logging
 from typing import Any
 
 from googleapiclient.errors import HttpError
@@ -17,6 +19,8 @@ from app.services.calendar.google_calendar import (
 DEFAULT_EVENT_DURATION_MINUTES = 60
 DEFAULT_QUERY_WINDOW_DAYS = 30
 DEFAULT_SEARCH_WINDOW_DAYS = 30
+
+logger = logging.getLogger(__name__)
 
 
 class CalendarActionError(RuntimeError):
@@ -85,6 +89,50 @@ def _event_duration(event: dict[str, Any]) -> timedelta:
     return timedelta(minutes=DEFAULT_EVENT_DURATION_MINUTES)
 
 
+def _build_rrule(recurrence: dict[str, Any], start_date: date) -> list[str] | None:
+    if not recurrence:
+        return None
+    frequency = recurrence.get("frequency")
+    if frequency not in {"daily", "weekly", "monthly", "yearly"}:
+        return None
+    interval = recurrence.get("interval") or 1
+    if not isinstance(interval, int) or interval <= 0:
+        interval = 1
+    rule_parts = [f"FREQ={frequency.upper()}", f"INTERVAL={interval}"]
+
+    byweekday = recurrence.get("byweekday")
+    if isinstance(byweekday, list) and byweekday:
+        codes = [str(code).upper() for code in byweekday if str(code).strip()]
+        if codes:
+            rule_parts.append(f"BYDAY={','.join(codes)}")
+    elif frequency == "weekly":
+        weekday_codes = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+        rule_parts.append(f"BYDAY={weekday_codes[start_date.weekday()]}")
+
+    ends = recurrence.get("ends") or {}
+    if isinstance(ends, dict):
+        ends_type = ends.get("type")
+        if ends_type == "on":
+            end_date = ends.get("date")
+            if isinstance(end_date, str):
+                try:
+                    parsed_end = date.fromisoformat(end_date)
+                except ValueError:
+                    parsed_end = None
+                if parsed_end:
+                    end_dt = datetime.combine(
+                        parsed_end, time(23, 59, 59), tzinfo=_local_tz()
+                    )
+                    end_dt_utc = end_dt.astimezone(timezone.utc)
+                    rule_parts.append(end_dt_utc.strftime("UNTIL=%Y%m%dT%H%M%SZ"))
+        elif ends_type == "after":
+            count = ends.get("count")
+            if isinstance(count, int) and count > 0:
+                rule_parts.append(f"COUNT={count}")
+
+    return ["RRULE:" + ";".join(rule_parts)]
+
+
 def _format_datetime(dt: datetime) -> str:
     return dt.strftime("%a %b %d, %Y at %H:%M %Z").strip()
 
@@ -141,6 +189,7 @@ def _candidate_from_event(event: dict[str, Any]) -> dict[str, Any]:
         "summary": event.get("summary"),
         "start": event.get("start"),
         "end": event.get("end"),
+        "recurringEventId": event.get("recurringEventId"),
     }
 
 
@@ -210,7 +259,9 @@ def build_disambiguation_message(
     return _build_selection_message(title, candidates)
 
 
-def build_delete_confirmation_message(candidate: dict[str, Any]) -> str:
+def build_delete_confirmation_message(
+    candidate: dict[str, Any], scope: str | None = None
+) -> str:
     summary = candidate.get("summary") or "Untitled event"
     start_info = candidate.get("start", {}) if isinstance(candidate.get("start"), dict) else {}
     if "dateTime" in start_info:
@@ -220,10 +271,16 @@ def build_delete_confirmation_message(candidate: dict[str, Any]) -> str:
         when = f"{start_info.get('date')} (all day)"
     else:
         when = "time unknown"
+    scope_line = ""
+    if scope == "series":
+        scope_line = "- **Scope:** entire series\n"
+    elif scope == "single":
+        scope_line = "- **Scope:** this occurrence\n"
     return (
         "**Confirm Delete**\n"
         f"- **Title:** {summary}\n"
-        f"- **When:** _{when}_\n\n"
+        f"- **When:** _{when}_\n"
+        f"{scope_line}\n"
         "Reply `yes` to confirm or `no` to cancel."
     )
 
@@ -311,6 +368,38 @@ def _handle_calendar_error(exc: Exception) -> CalendarActionError:
         if status_code is None and getattr(exc, "resp", None) is not None:
             status_code = getattr(exc.resp, "status", None)
         suffix = f" (status {status_code})" if status_code else ""
+        detail = None
+        raw_content = getattr(exc, "content", None)
+        if raw_content:
+            try:
+                payload = json.loads(raw_content.decode("utf-8"))
+                error_info = payload.get("error", {}) if isinstance(payload, dict) else {}
+                message = error_info.get("message")
+                errors = error_info.get("errors")
+                if errors and isinstance(errors, list):
+                    first_error = errors[0]
+                    if isinstance(first_error, dict):
+                        reason = first_error.get("reason")
+                        err_message = first_error.get("message")
+                        if reason and err_message:
+                            detail = f"{err_message} (reason: {reason})"
+                        elif err_message:
+                            detail = err_message
+                        elif reason:
+                            detail = f"reason: {reason}"
+                if not detail and message:
+                    detail = str(message)
+            except (ValueError, UnicodeDecodeError):
+                try:
+                    detail = raw_content.decode("utf-8", errors="replace")
+                except Exception:
+                    detail = None
+        if detail:
+            logger.warning("Google Calendar error detail: %s", detail)
+        if status_code == 400 and detail:
+            return CalendarActionError(
+                f"Google Calendar request failed{suffix}. {detail}"
+            )
         return CalendarActionError(f"Google Calendar request failed{suffix}.")
     return CalendarActionError("Calendar request failed. Please try again.")
 
@@ -321,6 +410,7 @@ def create_event(
     time_str: str,
     duration_minutes: int | None,
     description: str | None = None,
+    recurrence: dict[str, Any] | None = None,
 ) -> str:
     settings = get_settings()
     summary = title.strip() if isinstance(title, str) and title.strip() else "Untitled event"
@@ -334,12 +424,16 @@ def create_event(
         conflicts = _find_conflicts(start, end)
         if conflicts:
             raise CalendarConflictError(_build_conflict_message("create", conflicts))
+        rrule = None
+        if recurrence:
+            rrule = _build_rrule(recurrence, start.date())
         event = google_create_event(
             calendar_id=settings.google_calendar_id,
             summary=summary,
             start=start,
             end=end,
             description=description,
+            recurrence=rrule,
         )
     except CalendarActionError:
         raise
@@ -377,7 +471,13 @@ def get_events(date_str: str | None = None, time_str: str | None = None) -> str:
     return _format_events_summary(events)
 
 
-def update_event(title: str | None, date_str: str, time_str: str) -> str:
+def update_event(
+    title: str | None,
+    date_str: str,
+    time_str: str,
+    recurrence: dict[str, Any] | None = None,
+    apply_to: str | None = None,
+) -> str:
     if not title:
         raise CalendarActionError("Which event should I move?")
     settings = get_settings()
@@ -403,6 +503,13 @@ def update_event(title: str | None, date_str: str, time_str: str) -> str:
             )
         target = matches[0]
         event_id = target.get("id")
+        recurring_event_id = target.get("recurringEventId")
+        if recurring_event_id and apply_to is None:
+            raise CalendarActionError(
+                "Do you want to update just this occurrence or the entire series?"
+            )
+        if apply_to == "series" and recurring_event_id:
+            event_id = recurring_event_id
         if not event_id:
             raise CalendarActionError("Found the event but it has no ID to update.")
         duration = _event_duration(target)
@@ -410,11 +517,15 @@ def update_event(title: str | None, date_str: str, time_str: str) -> str:
         conflicts = _find_conflicts(new_start, new_end, exclude_event_id=event_id)
         if conflicts:
             raise CalendarConflictError(_build_conflict_message("update", conflicts))
+        rrule = None
+        if recurrence:
+            rrule = _build_rrule(recurrence, new_start.date())
         updated = google_update_event(
             calendar_id=settings.google_calendar_id,
             event_id=event_id,
             start=new_start,
             end=new_end,
+            recurrence=rrule,
         )
     except CalendarActionError:
         raise
@@ -429,7 +540,12 @@ def update_event(title: str | None, date_str: str, time_str: str) -> str:
     )
 
 
-def delete_event(title: str | None, date_str: str, time_str: str) -> str:
+def delete_event(
+    title: str | None,
+    date_str: str,
+    time_str: str,
+    apply_to: str | None = None,
+) -> str:
     if not title:
         raise CalendarActionError("Which event should I cancel?")
     settings = get_settings()
@@ -458,6 +574,13 @@ def delete_event(title: str | None, date_str: str, time_str: str) -> str:
             )
         target = matches[0]
         event_id = target.get("id")
+        recurring_event_id = target.get("recurringEventId")
+        if recurring_event_id and apply_to is None:
+            raise CalendarActionError(
+                "Do you want to cancel just this occurrence or the entire series?"
+            )
+        if apply_to == "series" and recurring_event_id:
+            event_id = recurring_event_id
         if not event_id:
             raise CalendarActionError("Found the event but it has no ID to cancel.")
         google_delete_event(
@@ -473,9 +596,20 @@ def delete_event(title: str | None, date_str: str, time_str: str) -> str:
 
 
 def update_event_from_candidate(
-    candidate: dict[str, Any], date_str: str, time_str: str
+    candidate: dict[str, Any],
+    date_str: str,
+    time_str: str,
+    recurrence: dict[str, Any] | None = None,
+    apply_to: str | None = None,
 ) -> str:
     event_id = candidate.get("id")
+    recurring_event_id = candidate.get("recurringEventId")
+    if recurring_event_id and apply_to is None:
+        raise CalendarActionError(
+            "Do you want to update just this occurrence or the entire series?"
+        )
+    if apply_to == "series" and recurring_event_id:
+        event_id = recurring_event_id
     if not event_id:
         raise CalendarActionError("Found the event but it has no ID to update.")
     summary = candidate.get("summary") or "Untitled event"
@@ -486,11 +620,15 @@ def update_event_from_candidate(
     if conflicts:
         raise CalendarConflictError(_build_conflict_message("update", conflicts))
     try:
+        rrule = None
+        if recurrence:
+            rrule = _build_rrule(recurrence, new_start.date())
         updated = google_update_event(
             calendar_id=get_settings().google_calendar_id,
             event_id=event_id,
             start=new_start,
             end=new_end,
+            recurrence=rrule,
         )
     except Exception as exc:
         raise _handle_calendar_error(exc) from exc
@@ -502,8 +640,17 @@ def update_event_from_candidate(
     )
 
 
-def delete_event_from_candidate(candidate: dict[str, Any]) -> str:
+def delete_event_from_candidate(
+    candidate: dict[str, Any], apply_to: str | None = None
+) -> str:
     event_id = candidate.get("id")
+    recurring_event_id = candidate.get("recurringEventId")
+    if recurring_event_id and apply_to is None:
+        raise CalendarActionError(
+            "Do you want to cancel just this occurrence or the entire series?"
+        )
+    if apply_to == "series" and recurring_event_id:
+        event_id = recurring_event_id
     if not event_id:
         raise CalendarActionError("Found the event but it has no ID to cancel.")
     summary = candidate.get("summary") or "Untitled event"
